@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bahar Sawken OPS</title>
+  <meta name="description" content="نظام عمليات متكامل لإدارة طلبات Bahar Sawken OPS.">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+</head>
+<body>
+  <section class="login-screen" id="loginScreen" hidden>
+    <form class="login-card" id="loginForm">
+      <p class="eyebrow">Operations Access</p>
+      <h2>تسجيل الدخول إلى النظام</h2>
+      <p class="login-copy">أدخل البريد الإلكتروني وكلمة المرور للمتابعة إلى Bahar Sawken OPS.</p>
+      <label>
+        <span>البريد الإلكتروني</span>
+        <input id="loginEmailInput" type="email" required placeholder="name@baharsawken.com">
+      </label>
+      <label>
+        <span>كلمة المرور</span>
+        <input id="loginPasswordInput" type="password" required placeholder="********">
+      </label>
+      <p class="login-error" id="loginErrorMessage" hidden>بيانات الدخول غير صحيحة.</p>
+      <div class="login-actions">
+        <button class="primary-button" id="loginSubmitButton" type="submit">دخول</button>
+        <button class="ghost-button" id="openPasswordRecoveryButton" type="button">نسيت كلمة السر؟</button>
+      </div>
+    </form>
+  </section>
+
+  <dialog id="passwordRecoveryDialog" class="reference-dialog">
+    <form class="dialog-card" id="passwordRecoveryForm">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">Password Recovery</p>
+          <h3>استرجاع كلمة السر</h3>
+        </div>
+        <button class="icon-button close-button" id="closePasswordRecoveryDialogButton" type="button">×</button>
+      </div>
+      <div class="dialog-body">
+        <label>
+          <span>البريد الإلكتروني</span>
+          <input id="passwordRecoveryEmailInput" type="email" required placeholder="name@baharsawken.com">
+        </label>
+        <label>
+          <span>الاسم الكامل</span>
+          <input id="passwordRecoveryNameInput" type="text" required placeholder="اكتب الاسم كما هو محفوظ">
+        </label>
+        <label>
+          <span>كلمة المرور الجديدة</span>
+          <input id="passwordRecoveryNewPasswordInput" type="password" required minlength="4" placeholder="********">
+        </label>
+        <label>
+          <span>تأكيد كلمة المرور الجديدة</span>
+          <input id="passwordRecoveryConfirmPasswordInput" type="password" required minlength="4" placeholder="********">
+        </label>
+        <p class="login-error" id="passwordRecoveryErrorMessage" hidden>تعذر التحقق من البيانات.</p>
+      </div>
+      <div class="dialog-actions">
+        <button class="ghost-button" id="cancelPasswordRecoveryDialogButton" type="button">إلغاء</button>
+        <button class="primary-button" type="submit">إعادة تعيين</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="app-shell" hidden>
+    <aside class="sidebar">
+      <div class="brand-card">
+        <div class="brand-mark">BS</div>
+        <div>
+          <p class="eyebrow">Operations Console</p>
+          <h1>Bahar Sawken OPS</h1>
+          <div class="profile-meta top-profile-meta">
+            <span id="currentUserName">Bahar Sawken Admin</span>
+            <span id="currentUserRole">Admin</span>
+            <span id="currentUserStage">DataEntry</span>
+          </div>
+          <div class="profile-actions">
+            <button class="ghost-button small-button" id="openAccountDialogButton" type="button">حسابي</button>
+            <button class="ghost-button small-button" id="logoutButton" type="button">تسجيل الخروج</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="menu-toggle-row" id="toggleSidebarButton" type="button">
+        <span class="menu-toggle-icon">☰</span>
+        <span>القائمة</span>
+      </button>
+
+      <nav class="nav-links">
+        <button class="nav-link active" data-view="dashboard">لوحة التحكم</button>
+        <button class="nav-link" data-view="requests">الطلبات</button>
+        <button class="nav-link" data-view="new-request">طلب جديد</button>
+        <button class="nav-link" data-view="references">قاعدة البيانات</button>
+        <button class="nav-link" data-view="accounts">الحسابات</button>
+        <button class="nav-link" data-view="reports">تقارير</button>
+        <button class="nav-link" data-view="archive">الأرشيف</button>
+        <button class="nav-link" data-view="workflow">سير المراحل</button>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="topbar-title-group">
+          <div>
+          <p class="eyebrow">منصة إدارة الطلبات</p>
+          <h2 id="pageTitle">القائمة</h2>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button class="primary-button" id="topbarPrimaryButton" type="button">إنشاء طلب</button>
+        </div>
+      </header>
+
+      <section class="view active" id="dashboard-view">
+        <div class="hero-panel">
+          <div>
+            <p class="eyebrow">نظرة سريعة</p>
+            <h3>لوحة تشغيل أنيقة وسريعة لفريق العمليات</h3>
+            <p class="hero-copy">
+              صممت هذه النسخة لتكون مناسبة للاستضافة الثابتة، مع واجهة عربية مريحة،
+              منطق محلي سريع، وبنية جاهزة للربط لاحقاً مع API وقاعدة بيانات.
+            </p>
+          </div>
+          <div class="hero-badge-grid">
+            <article class="mini-card accent-a">
+              <span>المرحلة الحالية</span>
+              <strong id="heroStage">DataEntry</strong>
+            </article>
+            <article class="mini-card accent-b">
+              <span>طلبات مسودة</span>
+              <strong id="heroDraftsCount">0</strong>
+            </article>
+            <article class="mini-card accent-c">
+              <span>مرجعية الشركات</span>
+              <strong id="heroCompaniesCount">0</strong>
+            </article>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span>إجمالي الطلبات</span>
+            <strong id="totalRequestsStat">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>طلبات Data Entry</span>
+            <strong id="dataEntryStat">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>تحت المراجعة</span>
+            <strong id="reviewStat">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>طلبات مكتملة</span>
+            <strong id="completedStat">0</strong>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">آخر الطلبات</p>
+                <h3>الطلبات النشطة</h3>
+              </div>
+            </div>
+            <div id="recentRequestsList" class="request-stack"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">الحركة التشغيلية</p>
+                <h3>سير المراحل</h3>
+              </div>
+            </div>
+            <div id="stageTimeline" class="timeline"></div>
+          </section>
+        </div>
+
+        <div class="dashboard-grid claims-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Claims</p>
+                <h3>مطالبات الطلبات المكتملة</h3>
+              </div>
+            </div>
+            <div id="completedClaimsList" class="request-stack"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Deferred Payment</p>
+                <h3>دفع آجل حسب البنك</h3>
+              </div>
+            </div>
+            <div id="deferredClaimsList" class="request-stack"></div>
+          </section>
+        </div>
+
+        <section class="panel template-library-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Generation Library</p>
+              <h3>مكتبة مستندات التوليد</h3>
+            </div>
+          </div>
+
+          <div class="template-library-grid">
+            <form id="generationTemplateForm" class="form-grid">
+              <label>
+                <span>نوع المستند</span>
+                <select id="generationTemplateCategorySelect">
+                  <option value="proformaInvoice">فاتورة مبدئية</option>
+                  <option value="finalInvoice">فاتورة نهائية</option>
+                  <option value="bl">بوليصة</option>
+                  <option value="coo">شهادة منشأ</option>
+                  <option value="importPermit">إذن استيراد</option>
+                  <option value="extra">مستند إضافي</option>
+                </select>
+              </label>
+
+              <label>
+                <span>اسم القالب</span>
+                <input id="generationTemplateTitleInput" type="text" placeholder="مثال: قالب كمبيالة أو خطاب بنك">
+              </label>
+
+              <label class="full-span">
+                <span>ملف القالب للتوليد</span>
+                <input id="generationTemplateFileInput" type="file" accept=".docx">
+              </label>
+
+              <div class="full-span submit-group">
+                <button class="primary-button" id="saveGenerationTemplateButton" type="button">حفظ قالب التوليد</button>
+              </div>
+            </form>
+
+            <div class="document-column">
+              <h4>القوالب المرفوعة</h4>
+              <div id="generationTemplatesList" class="document-list empty-state">لم يتم رفع أي قالب توليد بعد</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel admin-panel" id="adminPanel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Admin Console</p>
+              <h3>إدارة المستخدمين والصلاحيات والمراحل</h3>
+            </div>
+            <button class="ghost-button" data-reference-modal="users">إضافة مستخدم</button>
+          </div>
+
+          <div class="dashboard-grid claims-grid">
+            <section class="document-column">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Users</p>
+                  <h4>المستخدمون</h4>
+                </div>
+              </div>
+              <div id="usersAdminList" class="document-list empty-state">لا توجد بيانات مستخدمين</div>
+            </section>
+
+            <section class="document-column">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Stages</p>
+                  <h4>إعدادات المراحل</h4>
+                </div>
+              </div>
+              <div id="stagesAdminList" class="document-list empty-state">لا توجد بيانات مراحل</div>
+            </section>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="requests-view">
+        <div class="panel filter-panel">
+          <div class="filter-grid">
+            <label>
+              <span>بحث سريع</span>
+              <input id="requestSearchInput" type="search" placeholder="ابحث برقم الطلب أو الشركة أو الفاتورة">
+            </label>
+            <label>
+              <span>المرحلة</span>
+              <select id="stageFilterSelect"></select>
+            </label>
+            <label>
+              <span>الحالة</span>
+              <select id="statusFilterSelect">
+                <option value="all">الكل</option>
+                <option value="Draft">Draft</option>
+                <option value="Submitted">Submitted</option>
+                <option value="In Review">In Review</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">قائمة الطلبات</p>
+              <h3>إدارة كل الطلبات</h3>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>رقم الطلب</th>
+                  <th>الشركة</th>
+                  <th>الوكيل</th>
+                  <th>رقم الفاتورة</th>
+                  <th>قيمة الفاتورة</th>
+                  <th>المرحلة</th>
+                  <th>الحالة</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="requestsTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="new-request-view">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Request Form</p>
+              <h3 id="formTitle">إنشاء طلب جديد</h3>
+            </div>
+          </div>
+
+          <form id="requestForm" class="request-form">
+            <div class="form-stage-banner">
+              <article class="mini-card accent-a">
+                <span>المرحلة الحالية</span>
+                <strong id="currentFormStage">DataEntry</strong>
+              </article>
+              <article class="mini-card accent-b">
+                <span>المرحلة التالية</span>
+                <strong id="nextFormStage">InvoiceReview</strong>
+              </article>
+            </div>
+
+            <div class="form-grid">
+              <label data-field-key="sellerCompany">
+                <span>الشركة البائعة</span>
+                <div class="field-with-action">
+                  <select id="sellerCompanySelect" required></select>
+                  <button class="icon-button" type="button" data-reference-modal="companies">+</button>
+                </div>
+              </label>
+
+              <label data-field-key="importerCompany">
+                <span>الشركة المستوردة</span>
+                <div class="field-with-action">
+                  <select id="importerCompanySelect" required></select>
+                  <button class="icon-button" type="button" data-reference-modal="importerCompanies">+</button>
+                </div>
+              </label>
+
+              <label data-field-key="agent">
+                <span>وكيل الشركة المستوردة في السودان</span>
+                <input id="agentInput" type="text" placeholder="اسم الوكيل" readonly>
+              </label>
+
+              <label data-field-key="proformaInvoice">
+                <span>رقم الفاتورة المبدئية</span>
+                <input id="proformaInvoiceInput" type="text" placeholder="PI-2026-001">
+              </label>
+
+              <label data-field-key="finalInvoice">
+                <span>رقم الفاتورة النهائية</span>
+                <input id="finalInvoiceInput" type="text" placeholder="INV-2026-001">
+              </label>
+
+              <label data-field-key="invoiceValue">
+                <span>قيمة الفاتورة</span>
+                <input id="invoiceValueInput" type="number" min="0" step="0.01" placeholder="0.00">
+              </label>
+
+              <label data-field-key="blNumber">
+                <span>رقم البوليصة</span>
+                <input id="blNumberInput" type="text" placeholder="BL-000123">
+              </label>
+
+              <label data-field-key="blDate">
+                <span>تاريخ البوليصة</span>
+                <input id="blDateInput" type="date">
+              </label>
+
+              <label data-field-key="origin">
+                <span>منشأ السلعة</span>
+                <input id="originInput" type="text" placeholder="مثال: Brazil">
+              </label>
+
+              <label data-field-key="cooNumber">
+                <span>رقم شهادة المنشأ</span>
+                <input id="cooNumberInput" type="text" placeholder="COO-4432">
+              </label>
+
+              <label data-field-key="cooDate">
+                <span>تاريخ شهادة المنشأ</span>
+                <input id="cooDateInput" type="date">
+              </label>
+
+              <label data-field-key="commodity">
+                <span>السلعة</span>
+                <div class="field-with-action">
+                  <select id="commoditySelect" required></select>
+                  <button class="icon-button" type="button" data-reference-modal="commodities">+</button>
+                </div>
+              </label>
+
+              <label data-field-key="hsCode">
+                <span>HS Code</span>
+                <input id="hsCodeInput" type="text" placeholder="170199">
+              </label>
+
+              <label data-field-key="port">
+                <span>ميناء الوصول</span>
+                <div class="field-with-action">
+                  <select id="portSelect" required></select>
+                  <button class="icon-button" type="button" data-reference-modal="ports">+</button>
+                </div>
+              </label>
+
+              <label data-field-key="bank">
+                <span>البنك</span>
+                <div class="field-with-action">
+                  <select id="bankSelect"></select>
+                  <button class="icon-button" type="button" data-reference-modal="banks">+</button>
+                </div>
+              </label>
+
+              <label data-field-key="transactionType">
+                <span>نوع المعاملة</span>
+                <select id="transactionTypeSelect">
+                  <option value="Cash">نقدي</option>
+                  <option value="Deferred">دفع آجل</option>
+                  <option value="LC">اعتماد مستندي</option>
+                </select>
+              </label>
+
+              <label data-field-key="importPermit">
+                <span>رقم إذن الاستيراد</span>
+                <input id="importPermitInput" type="text" placeholder="IMP-8891">
+              </label>
+
+              <label class="full-span" data-field-key="notes">
+                <span>ملاحظات</span>
+                <textarea id="notesInput" rows="4" placeholder="ملاحظات إضافية مرتبطة بالطلب"></textarea>
+              </label>
+            </div>
+
+            <section class="panel custom-fields-panel" id="customFieldsPanel" hidden>
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Custom Fields</p>
+                  <h3>حقول إضافية</h3>
+                </div>
+              </div>
+              <div id="dynamicRequestFields" class="form-grid"></div>
+            </section>
+
+            <section class="financial-review-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Finance Review</p>
+                  <h3>المراجعة المالية والمطالبات</h3>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <label data-field-key="serviceFeeRate">
+                  <span>سعر التختيم على 1000 دولار</span>
+                  <input id="serviceFeeRateInput" type="number" min="0" step="0.01" placeholder="200000">
+                </label>
+
+                <label data-field-key="serviceFeeAmount">
+                  <span>تختيم الفاتورة</span>
+                  <input id="serviceFeeAmountInput" type="number" min="0" step="0.01" readonly>
+                </label>
+
+                <label class="full-span" data-field-key="financeNotes">
+                  <span>ملاحظة مالية</span>
+                  <textarea id="financeNotesInput" rows="3" placeholder="أي توضيحات خاصة بالمراجعة المالية أو المطالبة"></textarea>
+                </label>
+              </div>
+            </section>
+
+            <section class="documents-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Documents</p>
+                  <h3>مستندات الطلب</h3>
+                </div>
+              </div>
+
+              <div class="documents-grid">
+                <div class="document-column">
+                  <h4>مستندات المراحل السابقة</h4>
+                  <div id="previousStageDocuments" class="document-list empty-state">لا توجد مستندات من مراحل سابقة</div>
+                </div>
+
+                <div class="document-column">
+                  <h4>مستندات المرحلة الحالية</h4>
+                  <div id="currentStageDocuments" class="document-list empty-state">لا توجد مستندات مرفوعة لهذه المرحلة بعد</div>
+                </div>
+              </div>
+
+              <div id="dynamicDocumentUploads" class="upload-grid"></div>
+            </section>
+
+            <div class="form-actions">
+              <button class="ghost-button" id="resetFormButton" type="button">تفريغ الحقول</button>
+              <div class="submit-group">
+                <button class="secondary-button" id="saveDraftButton" type="submit" data-submit-mode="draft">حفظ كمسودة</button>
+                <button class="primary-button" id="submitRequestButton" type="submit" data-submit-mode="submit">إرسال للمرحلة التالية</button>
+              </div>
+            </div>
+          </form>
+        </section>
+      </section>
+
+      <section class="view" id="references-view">
+        <div class="reference-grid">
+          <section class="panel full-span">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Database Search</p>
+                <h3>بحث عام</h3>
+              </div>
+            </div>
+            <div class="table-toolbar">
+              <input id="referencesGlobalSearchInput" type="search" placeholder="ابحث في جميع جداول قاعدة البيانات من مكان واحد">
+            </div>
+          </section>
+
+          <section class="reference-group-block full-span">
+            <div class="reference-group-header">
+              <p class="eyebrow">Customization</p>
+              <h3>التخصيص والتوسعة</h3>
+              <p>الجداول والحقول التي توسع النظام وتضيف عليه عناصر جديدة.</p>
+            </div>
+            <div class="reference-group-grid">
+              <section class="panel full-span">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database Builder</p>
+                    <h3>الجداول المضافة</h3>
+                  </div>
+                </div>
+                <div id="customTablesList" class="chips-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="reference-group-block full-span">
+            <div class="reference-group-header">
+              <p class="eyebrow">Operations Data</p>
+              <h3>البيانات التشغيلية</h3>
+              <p>الشركات والوكلاء والموانئ والبنوك والسلع المرتبطة بالطلبات اليومية.</p>
+            </div>
+            <div class="reference-group-grid">
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>الشركات المصدرة</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="companies">إضافة شركة مصدرة</button>
+                </div>
+                <div id="companiesList" class="chips-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>الوكلاء</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="agents">إضافة وكيل</button>
+                </div>
+                <div id="agentsList" class="chips-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>الشركات المستوردة</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="importerCompanies">إضافة شركة مستوردة</button>
+                </div>
+                <div id="importerCompaniesList" class="chips-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>الموانئ</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="ports">إضافة ميناء</button>
+                </div>
+                <div id="portsList" class="chips-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>البنوك</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="banks">إضافة بنك</button>
+                </div>
+                <div id="banksList" class="chips-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>السلع</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="commodities">إضافة سلعة</button>
+                </div>
+                <div id="commoditiesList" class="chips-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="reference-group-block full-span">
+            <div class="reference-group-header">
+              <p class="eyebrow">Access Control</p>
+              <h3>المستخدمون والصلاحيات</h3>
+              <p>الأدوار والمراحل التي تتحكم في توزيع العمل والصلاحيات داخل النظام.</p>
+            </div>
+            <div class="reference-group-grid">
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>الأدوار</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="roles">إضافة دور</button>
+                </div>
+                <div id="rolesList" class="chips-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>المراحل</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="stages">إضافة مرحلة</button>
+                </div>
+                <div id="stagesDatabaseList" class="chips-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="reference-group-block full-span">
+            <div class="reference-group-header">
+              <p class="eyebrow">Documents Setup</p>
+              <h3>المستندات والتسمية</h3>
+              <p>تعريف أنواع المستندات ومصادر التسمية وربطها بالمراحل والطلبات.</p>
+            </div>
+            <div class="reference-group-grid">
+              <section class="panel full-span">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>أنواع المستندات</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="documentCategories">إضافة نوع</button>
+                </div>
+                <div id="documentCategoriesList" class="chips-list"></div>
+              </section>
+
+              <section class="panel full-span">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>مصادر الاسم</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="documentNameSources">إضافة مصدر</button>
+                </div>
+                <div id="documentNameSourcesList" class="chips-list"></div>
+              </section>
+
+              <section class="panel full-span">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>تعريفات المستندات</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="documentTypes">إضافة مستند</button>
+                </div>
+                <div id="documentTypesList" class="chips-list"></div>
+              </section>
+
+              <section class="panel full-span">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>المستندات</h3>
+                  </div>
+                </div>
+                <div class="table-toolbar">
+                  <input id="documentsSearchInput" data-documents-filter="search" type="search" placeholder="ابحث برقم الطلب أو اسم المستند أو المرحلة">
+                  <input id="documentsDateFromInput" data-documents-filter="from" type="date">
+                  <input id="documentsDateToInput" data-documents-filter="to" type="date">
+                </div>
+                <div class="table-wrap">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>رقم الطلب</th>
+                        <th>المرحلة</th>
+                        <th>اسم المستند</th>
+                        <th>النوع</th>
+                        <th>تاريخ الرفع</th>
+                        <th>إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody id="documentsDatabaseTableBody"></tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section class="reference-group-block full-span">
+            <div class="reference-group-header">
+              <p class="eyebrow">Input Setup</p>
+              <h3>الإدخال والواجهات</h3>
+              <p>الحقول التي تظهر في الطلب ويمكن التحكم فيها وتوسعتها حسب الحاجة.</p>
+            </div>
+            <div class="reference-group-grid">
+              <section class="panel full-span">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Database</p>
+                    <h3>حقول الإدخال</h3>
+                  </div>
+                  <button class="ghost-button" data-reference-modal="inputFields">إضافة حقل</button>
+                </div>
+                <div id="inputFieldsList" class="chips-list"></div>
+              </section>
+            </div>
+          </section>
+
+        </div>
+      </section>
+
+      <section class="view" id="reports-view">
+        <div class="panel reports-toolbar print-hidden">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Reports Tools</p>
+              <h3>طباعة التقارير</h3>
+            </div>
+            <button class="primary-button" id="printReportsButton" type="button">طباعة التقرير</button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span>ذمم الفواتير المكتملة</span>
+            <strong id="reportsInvoiceReceivables">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>ذمم التختيم المكتملة</span>
+            <strong id="reportsStampingReceivables">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>طلبات تحت الإجراء</span>
+            <strong id="reportsInProgressCount">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>طلبات مكتملة</span>
+            <strong id="reportsCompletedCount">0</strong>
+          </article>
+        </div>
+
+        <div class="dashboard-grid claims-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Receivables</p>
+                <h3>مطالبات الطلبات المكتملة</h3>
+              </div>
+            </div>
+            <div id="reportsCompletedClaimsList" class="request-stack"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Deferred</p>
+                <h3>الدفع الآجل حسب البنك</h3>
+              </div>
+            </div>
+            <div id="reportsDeferredClaimsList" class="request-stack"></div>
+          </section>
+        </div>
+
+        <div class="dashboard-grid claims-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Operational</p>
+                <h3>الحركة التشغيلية حسب المرحلة</h3>
+              </div>
+            </div>
+            <div id="reportsStageLoadList" class="document-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Collections</p>
+                <h3>ملخص الذمم والمبالغ</h3>
+              </div>
+            </div>
+            <div id="reportsFinancialSummary" class="document-list"></div>
+          </section>
+        </div>
+
+        <div class="dashboard-grid claims-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Agents</p>
+                <h3>تقرير الوكلاء</h3>
+              </div>
+            </div>
+            <div id="reportsAgentsSummary" class="document-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Importers</p>
+                <h3>تقرير الشركات المستوردة</h3>
+              </div>
+            </div>
+            <div id="reportsImportersSummary" class="document-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Exporters</p>
+                <h3>تقرير الشركات المصدرة</h3>
+              </div>
+            </div>
+            <div id="reportsExportersSummary" class="document-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="accounts-view">
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span>خزينة الجنيه</span>
+            <strong id="treasuryBalanceStat">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>خزينة الدرهم</span>
+            <strong id="aedTreasuryBalanceStat">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>إجمالي المطالبات</span>
+            <strong id="receivablesBalanceStat">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>إجمالي السداد</span>
+            <strong id="collectionsBalanceStat">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>إجمالي المنصرفات</span>
+            <strong id="expensesBalanceStat">0</strong>
+          </article>
+        </div>
+
+        <div class="dashboard-grid claims-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Treasury</p>
+                <h3>الخزينة والحركة النقدية بالجنيه</h3>
+              </div>
+            </div>
+            <div id="treasuryMovementsList" class="document-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Receivables</p>
+                <h3>المطالبات المفتوحة</h3>
+              </div>
+            </div>
+            <div id="receivablesList" class="document-list"></div>
+          </section>
+        </div>
+
+        <div class="dashboard-grid claims-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">AED Treasury</p>
+                <h3>خزينة الدرهم وشراء العملة</h3>
+              </div>
+            </div>
+            <div id="aedTreasuryMovementsList" class="document-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Collections</p>
+                <h3>السداد والتحصيل</h3>
+              </div>
+            </div>
+            <div id="collectionsList" class="document-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Expenses</p>
+                <h3>المنصرفات</h3>
+              </div>
+            </div>
+            <div id="expensesList" class="document-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="archive-view">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Archive</p>
+              <h3>الأرشيف</h3>
+            </div>
+          </div>
+          <div id="archiveList" class="document-list"></div>
+        </section>
+      </section>
+
+      <section class="view" id="workflow-view">
+        <div class="workflow-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Workflow Map</p>
+                <h3>تسلسل المراحل</h3>
+              </div>
+            </div>
+            <div id="workflowBoard" class="workflow-board"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Rules</p>
+                <h3>قواعد التشغيل الحالية</h3>
+              </div>
+            </div>
+            <ul class="rules-list">
+              <li>الحفظ كمسودة يبقي الطلب في مرحلة <strong>DataEntry</strong>.</li>
+              <li>الإرسال يرفع الطلب إلى <strong>InvoiceReview</strong>.</li>
+              <li>يمكن تعديل المسودات في أي وقت من شاشة الطلبات.</li>
+              <li>الجداول المرجعية قابلة للإدارة من داخل النظام نفسه.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="referenceDialog" class="reference-dialog">
+    <form method="dialog" class="dialog-card" id="referenceForm">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Reference Entry</p>
+          <h3 id="referenceDialogTitle">إضافة عنصر</h3>
+        </div>
+        <button class="icon-button close-button" id="closeReferenceDialogButton" type="button">×</button>
+      </div>
+      <div id="referenceFields" class="form-grid compact-grid"></div>
+      <div class="form-actions">
+        <button class="ghost-button" id="cancelReferenceDialogButton" type="button">إلغاء</button>
+        <button class="primary-button" id="saveReferenceButton" type="button">حفظ</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="templatePreviewDialog" class="reference-dialog">
+    <div class="dialog-card preview-dialog-card">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Template Preview</p>
+          <h3 id="templatePreviewTitle">معاينة المستند</h3>
+        </div>
+        <button class="icon-button close-button" id="closeTemplatePreviewButton" type="button">×</button>
+      </div>
+      <div id="templatePreviewBody" class="template-preview-body"></div>
+      <div class="form-actions">
+        <button class="ghost-button" id="closeTemplatePreviewFooterButton" type="button">إغلاق</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="detailsDialog" class="reference-dialog">
+    <div class="dialog-card preview-dialog-card">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow" id="detailsDialogEyebrow">Details</p>
+          <h3 id="detailsDialogTitle">عرض التفاصيل</h3>
+        </div>
+        <button class="icon-button close-button" id="closeDetailsDialogButton" type="button">×</button>
+      </div>
+      <div id="detailsDialogBody" class="template-preview-body"></div>
+      <div class="form-actions">
+        <button class="ghost-button" id="closeDetailsDialogFooterButton" type="button">إغلاق</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="accountEntryDialog" class="reference-dialog">
+    <form class="dialog-card" id="accountEntryForm">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Accounts Entry</p>
+          <h3>إضافة حركة مالية</h3>
+        </div>
+        <button class="icon-button close-button" id="closeAccountEntryDialogButton" type="button">×</button>
+      </div>
+      <div class="form-grid compact-grid">
+        <label>
+          <span>نوع الحركة</span>
+          <select id="accountEntryTypeInput" required>
+            <option value="collection">سداد / تحصيل</option>
+            <option value="expense">منصرف</option>
+            <option value="payment">سداد مطالبة</option>
+            <option value="fxPurchase">شراء درهم</option>
+          </select>
+        </label>
+        <label id="accountEntryTitleField">
+          <span>العنوان</span>
+          <input id="accountEntryTitleInput" type="text" required placeholder="مثال: تحصيل من العميل">
+        </label>
+        <label id="accountEntryAmountField">
+          <span>المبلغ بالجنيه</span>
+          <input id="accountEntryAmountInput" type="number" min="0" step="0.01" required placeholder="0">
+        </label>
+        <label id="accountEntryAccountField">
+          <span>الحساب / المصدر</span>
+          <select id="accountEntryAccountInput" required>
+            <option value="treasury_sdg">خزينة الجنيه</option>
+            <option value="bank_sdg">الحساب البنكي بالجنيه</option>
+            <option value="collections">السداد والتحصيل</option>
+            <option value="expenses">المنصرفات</option>
+          </select>
+        </label>
+        <label id="accountEntryCurrencyField" hidden>
+          <span>العملة</span>
+          <select id="accountEntryCurrencyInput">
+            <option value="SDG">جنيه</option>
+            <option value="AED">درهم</option>
+          </select>
+        </label>
+        <label id="accountEntryClientField" hidden>
+          <span id="accountEntryClientLabel">العملاء</span>
+          <select id="accountEntryClientInput"></select>
+        </label>
+        <label class="full-span" id="accountEntryReceivableField" hidden>
+          <span>المطالبة</span>
+          <select id="accountEntryReceivableInput"></select>
+        </label>
+        <label class="full-span" id="fxPurchaseFields" hidden>
+          <span>تفاصيل شراء الدرهم</span>
+          <div class="form-grid compact-grid">
+            <input id="accountEntryFxRateInput" type="number" min="0" step="0.0001" placeholder="سعر الدرهم بالجنيه">
+            <input id="accountEntryAedAmountInput" type="number" min="0" step="0.01" placeholder="المبلغ بالدرهم">
+          </div>
+        </label>
+        <label id="accountEntryPartyField">
+          <span>الجهة</span>
+          <input id="accountEntryPartyInput" type="text" placeholder="العميل / المورد / البنك">
+        </label>
+        <label id="accountEntryRequestField">
+          <span>رقم الطلب</span>
+          <input id="accountEntryRequestNoInput" type="text" placeholder="26000000001">
+        </label>
+        <label class="full-span">
+          <span>ملاحظات</span>
+          <textarea id="accountEntryNotesInput" rows="3" placeholder="تفاصيل الحركة المالية" required></textarea>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="ghost-button" id="cancelAccountEntryDialogButton" type="button">إلغاء</button>
+        <button class="primary-button" id="saveAccountEntryButton" type="submit">حفظ الحركة</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="accountProfileDialog" class="reference-dialog">
+    <form class="dialog-card" id="accountProfileForm">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Account Settings</p>
+          <h3>حساب المستخدم</h3>
+        </div>
+        <button class="icon-button close-button" id="closeAccountProfileDialogButton" type="button">×</button>
+      </div>
+      <div class="form-grid compact-grid">
+        <label>
+          <span>الاسم</span>
+          <input id="accountProfileNameInput" type="text" readonly>
+        </label>
+        <label>
+          <span>البريد الإلكتروني</span>
+          <input id="accountProfileEmailInput" type="email" readonly>
+        </label>
+        <label>
+          <span>الدور</span>
+          <input id="accountProfileRoleInput" type="text" readonly>
+        </label>
+        <label>
+          <span>المرحلة</span>
+          <input id="accountProfileStageInput" type="text" readonly>
+        </label>
+        <label>
+          <span>صفحة البداية</span>
+          <select id="accountProfileDefaultPageInput">
+            <option value="dashboard">لوحة التحكم</option>
+            <option value="requests">الطلبات</option>
+            <option value="new-request">طلب جديد</option>
+            <option value="references">قاعدة البيانات</option>
+            <option value="accounts">الحسابات</option>
+            <option value="reports">تقارير</option>
+            <option value="archive">الأرشيف</option>
+            <option value="workflow">سير المراحل</option>
+          </select>
+        </label>
+        <label>
+          <span>كلمة المرور الحالية</span>
+          <input id="accountProfileCurrentPasswordInput" type="password" placeholder="أدخل كلمة المرور الحالية">
+        </label>
+        <label>
+          <span>كلمة المرور الجديدة</span>
+          <input id="accountProfileNewPasswordInput" type="password" placeholder="اتركها فارغة إذا لا تريد التغيير">
+        </label>
+        <label class="full-span">
+          <span>تأكيد كلمة المرور الجديدة</span>
+          <input id="accountProfileConfirmPasswordInput" type="password" placeholder="أعد كتابة كلمة المرور الجديدة">
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="ghost-button" id="cancelAccountProfileDialogButton" type="button">إلغاء</button>
+        <button class="primary-button" id="saveAccountProfileButton" type="submit">حفظ التعديلات</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="customTableRecordDialog" class="reference-dialog">
+    <form class="dialog-card" id="customTableRecordForm">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Custom Table Record</p>
+          <h3 id="customTableRecordDialogTitle">إضافة سجل</h3>
+        </div>
+        <button class="icon-button close-button" id="closeCustomTableRecordDialogButton" type="button">×</button>
+      </div>
+      <div id="customTableRecordFields" class="form-grid compact-grid"></div>
+      <div class="form-actions">
+        <button class="ghost-button" id="cancelCustomTableRecordDialogButton" type="button">إلغاء</button>
+        <button class="primary-button" id="saveCustomTableRecordButton" type="submit">حفظ</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./assets/vendor/jszip.min.js"></script>
+  <script type="module" src="./assets/js/app.js"></script>
+</body>
+</html>
