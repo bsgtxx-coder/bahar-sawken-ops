@@ -778,73 +778,87 @@ class SupabaseDataService {
 
   async loadState() {
     const supabase = this.ensureClient();
-    const [usersRes, stagesRes, companiesRes, portsRes, banksRes, commoditiesRes, requestsRes] =
-      await Promise.all([
-        supabase.from("users").select("*").limit(1).maybeSingle(),
-        supabase.from("stages").select("*").order("order_no"),
-        supabase.from("companies").select("*").order("name"),
-        supabase.from("ports").select("*").order("name"),
-        supabase.from("banks").select("*").order("name"),
-        supabase.from("commodities").select("*").order("name"),
-        supabase.from("requests").select("*").order("created_at", { ascending: false })
-      ]);
+    const { data, error } = await supabase
+      .from("app_state")
+      .select("state")
+      .eq("id", "main")
+      .maybeSingle();
+    throwIfError(error);
 
-    throwIfError(usersRes.error);
-    throwIfError(stagesRes.error);
-    throwIfError(companiesRes.error);
-    throwIfError(portsRes.error);
-    throwIfError(banksRes.error);
-    throwIfError(commoditiesRes.error);
-    throwIfError(requestsRes.error);
+    const fallback = defaultState();
+    const nextState = data?.state && typeof data.state === "object"
+      ? data.state
+      : fallback;
 
-    return {
-      currentUser: usersRes.data
-        ? mapSupabaseUser(usersRes.data)
-        : defaultState().currentUser,
-      stages: (stagesRes.data || []).map(mapSupabaseStage),
-      companies: (companiesRes.data || []).map(mapSupabaseCompany),
-      ports: (portsRes.data || []).map(mapSupabasePort),
-      banks: (banksRes.data || []).map(mapSupabaseBank),
-      commodities: (commoditiesRes.data || []).map(mapSupabaseCommodity),
-      requests: (requestsRes.data || []).map(mapSupabaseRequest)
-    };
+    if (!data?.state || typeof data.state !== "object") {
+      await this.saveState(nextState);
+    }
+
+    return nextState;
   }
 
-  async saveState() {
+  async saveState(state) {
+    const supabase = this.ensureClient();
+    const { error } = await supabase
+      .from("app_state")
+      .upsert(
+        {
+          id: "main",
+          state,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: "id" }
+      );
+    throwIfError(error);
     return true;
   }
 
   async reset() {
-    throw new Error("Reset is disabled in supabase mode");
+    const fresh = defaultState();
+    await this.saveState(fresh);
+    return fresh;
   }
 
   async createReference(type, payload) {
-    const supabase = this.ensureClient();
-    const tableMap = {
-      companies: "companies",
-      ports: "ports",
-      banks: "banks",
-      commodities: "commodities"
+    const snapshot = await this.loadState();
+    const collection = Array.isArray(snapshot[type]) ? snapshot[type] : [];
+    const nextItem = {
+      id: nextReferenceId(collection),
+      ...payload,
+      createdAt: payload.createdAt || new Date().toISOString(),
+      updatedAt: payload.updatedAt || new Date().toISOString()
     };
-    const { data, error } = await supabase
-      .from(tableMap[type])
-      .insert(mapReferencePayload(type, payload))
-      .select()
-      .single();
-    throwIfError(error);
-    return data;
+    snapshot[type] = [nextItem, ...collection];
+    await this.saveState(snapshot);
+    return nextItem;
   }
 
   async upsertRequest(payload) {
-    const supabase = this.ensureClient();
-    const { data, error } = await supabase
-      .from("requests")
-      .upsert(mapRequestPayload(payload), { onConflict: "id" })
-      .select()
-      .single();
-    throwIfError(error);
-    return data;
+    const snapshot = await this.loadState();
+    const requests = Array.isArray(snapshot.requests) ? snapshot.requests : [];
+    const index = requests.findIndex((item) => Number(item.id) === Number(payload.id));
+    const nextRecord = {
+      ...payload,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (index >= 0) {
+      requests[index] = {
+        ...requests[index],
+        ...nextRecord
+      };
+    } else {
+      requests.unshift(nextRecord);
+    }
+
+    snapshot.requests = requests;
+    await this.saveState(snapshot);
+    return nextRecord;
   }
+}
+
+function nextReferenceId(items) {
+  return (items || []).reduce((max, item) => Math.max(max, Number(item?.id || 0)), 0) + 1;
 }
 
 function throwIfError(error) {

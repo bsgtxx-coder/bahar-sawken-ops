@@ -1,0 +1,8 @@
+desktop.ini
+
+temp-docx-inspect/
+tmp-pdf-inspect/
+handoff-package/
+
+*.zip
+shared-chat.html

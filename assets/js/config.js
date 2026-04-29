@@ -1,9 +1,9 @@
 export const appConfig = {
   appName: "Bahar Sawken OPS",
-  dataMode: "local",
+  dataMode: "supabase",
   localStorageKey: "bahar-sawken-ops-demo-v2",
   supabase: {
-    url: "",
-    anonKey: ""
+    url: "https://tgtqfqkfrxsbpzxrojya.supabase.co",
+    anonKey: "sb_publishable_oXBgrJnshQe2GqxiGb4UNQ_wPNXkrQi"
   }
 };

@@ -978,7 +978,7 @@ async function boot() {
   try {
     state = normalizeLoadedState(await dataService.loadState());
     reconcileOperationalReferences();
-    if (appConfig.dataMode !== "supabase") dataService.saveState(state);
+    await dataService.saveState(state);
   } catch (error) {
     console.error(error);
     alert(`تعذر تحميل البيانات من ${appConfig.dataMode}. سيتم الرجوع للوضع المحلي.`);
@@ -2802,7 +2802,7 @@ async function deleteRequest(id) {
   const confirmed = window.confirm(`سيتم حذف الطلب ${request.requestNo} نهائياً من القائمة الحالية.\nالمتابعة؟`);
   if (!confirmed) return;
   state.requests = state.requests.filter((item) => item.id !== id);
-  if (appConfig.dataMode !== "supabase") dataService.saveState(state);
+  await dataService.saveState(state);
   closeDetailsDialog();
   renderApp();
 }
@@ -2930,12 +2930,9 @@ async function saveReference() {
     newItem.rows = existingItem?.rows || [];
   }
 
-  if (appConfig.dataMode === "supabase" && currentReferenceType !== "users" && !isEdit) {
-    const saved = await dataService.createReference(currentReferenceType, payload);
+  if (appConfig.dataMode === "supabase" && !isEdit) {
+    const saved = await dataService.createReference(currentReferenceType, newItem);
     target.unshift({ ...normalizeReferenceFromSupabase(currentReferenceType, saved), createdAt: nowIso, updatedAt: nowIso });
-  } else if (appConfig.dataMode === "supabase") {
-    alert("تعديل أو حذف قاعدة البيانات في وضع Supabase لم يكتمل بعد في هذه النسخة. استخدم الوضع المحلي للتطوير الكامل.");
-    return;
   } else {
     if (isEdit) {
       const index = target.findIndex((item) => item.id === currentReferenceEditId);
@@ -2962,7 +2959,7 @@ async function saveReference() {
     if (["agents", "importerCompanies", "companies"].includes(currentReferenceType)) {
       reconcileOperationalReferences();
     }
-    dataService.saveState(state);
+    await dataService.saveState(state);
   }
 
   currentReferenceEditId = null;
@@ -3202,11 +3199,7 @@ function splitCommaValues(value) {
     .filter(Boolean);
 }
 
-function deleteReferenceRecord(type, id) {
-  if (appConfig.dataMode === "supabase") {
-    alert("الحذف من قاعدة البيانات في وضع Supabase لم يكتمل بعد في هذه النسخة.");
-    return;
-  }
+async function deleteReferenceRecord(type, id) {
   const record = state[type]?.find((item) => item.id === id);
   if (!record) return;
   const label = record.name || record.email || record.id;
@@ -3259,7 +3252,7 @@ function deleteReferenceRecord(type, id) {
     );
   }
   reconcileOperationalReferences();
-  dataService.saveState(state);
+  await dataService.saveState(state);
   populateFormOptions();
   renderApp();
 }
@@ -3702,7 +3695,7 @@ async function saveAccountEntry(event) {
     });
   }
 
-  if (appConfig.dataMode !== "supabase") dataService.saveState(state);
+  await dataService.saveState(state);
   closeAccountEntryDialog();
   renderApp();
 }
@@ -3747,7 +3740,7 @@ async function restoreRequest(id) {
   renderApp();
 }
 
-function restoreReferenceRecord(type, id) {
+async function restoreReferenceRecord(type, id) {
   const record = state[type]?.find((item) => item.id === id);
   if (!record || !record.archived) return;
   const reason = promptRequiredNote(`اكتب سبب استرجاع هذا السجل بعد التسوية`, "تمت التسوية والاسترجاع");
@@ -3755,7 +3748,7 @@ function restoreReferenceRecord(type, id) {
   record.archived = false;
   record.updatedAt = new Date().toISOString();
   record.restoreReason = reason;
-  dataService.saveState(state);
+  await dataService.saveState(state);
   populateFormOptions();
   renderApp();
 }
@@ -3764,7 +3757,11 @@ function normalizeReferenceFromSupabase(type, row) {
   if (type === "companies") return { id: row.id, name: row.name, agent: row.agent, country: row.country };
   if (type === "ports") return { id: row.id, name: row.name };
   if (type === "banks") return { id: row.id, name: row.name, branch: row.branch };
-  return { id: row.id, name: row.name, hsCode: row.hs_code };
+  if (type === "commodities") return { id: row.id, name: row.name, hsCode: row.hsCode ?? row.hs_code };
+  if (["agents", "importerCompanies", "users", "roles", "stages", "documentTypes", "documentCategories", "documentNameSources", "inputFields", "customTables"].includes(type)) {
+    return row;
+  }
+  return row;
 }
 
 function getReferenceFilterState(type) {
@@ -3976,9 +3973,7 @@ async function saveGenerationTemplate() {
     nextTemplate
   ];
 
-  if (appConfig.dataMode !== "supabase") {
-    dataService.saveState(state);
-  }
+  await dataService.saveState(state);
 
   titleInput.value = "";
   categorySelect.value = "proformaInvoice";
