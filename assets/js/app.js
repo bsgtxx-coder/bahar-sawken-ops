@@ -1316,6 +1316,11 @@ function renderRequestFilters() {
     });
     stageFilter.dataset.initialized = "true";
   }
+
+  const preferredStage = getDefaultRequestStageFilter();
+  if (stageFilter && (!stageFilter.value || stageFilter.value === "all") && preferredStage !== "all") {
+    stageFilter.value = preferredStage;
+  }
 }
 
 function resetRequestFilters() {
@@ -1323,14 +1328,26 @@ function resetRequestFilters() {
   const stageFilter = document.getElementById("stageFilterSelect");
   const statusFilter = document.getElementById("statusFilterSelect");
   if (searchInput) searchInput.value = "";
-  if (stageFilter) stageFilter.value = "all";
+  if (stageFilter) stageFilter.value = getDefaultRequestStageFilter();
   if (statusFilter) statusFilter.value = "all";
+}
+
+function canCurrentUserViewAllRequests() {
+  const permissions = getEffectivePermissions();
+  return Boolean(permissions.adminPanel || permissions.editAllRequests || state.currentUser?.stage === "SystemAdmin");
+}
+
+function getDefaultRequestStageFilter() {
+  if (canCurrentUserViewAllRequests()) return "all";
+  return state.currentUser?.stage || "all";
 }
 
 function getFilteredRequests() {
   const search = document.getElementById("requestSearchInput")?.value.trim().toLowerCase() || "";
-  const stage = document.getElementById("stageFilterSelect")?.value || "all";
+  const selectedStage = document.getElementById("stageFilterSelect")?.value || getDefaultRequestStageFilter();
   const status = document.getElementById("statusFilterSelect")?.value || "all";
+  const forcedStage = canCurrentUserViewAllRequests() ? null : (state.currentUser?.stage || null);
+  const stage = forcedStage || selectedStage;
 
   return state.requests.filter((request) => {
     if (request.archived) return false;
