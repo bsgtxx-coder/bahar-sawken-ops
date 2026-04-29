@@ -1342,6 +1342,14 @@ function getDefaultRequestStageFilter() {
   return state.currentUser?.stage || "all";
 }
 
+function requestVisibleToCurrentUser(request) {
+  if (canCurrentUserViewAllRequests()) return true;
+  if ((state.currentUser?.stage || "") === "DataEntry") {
+    return String(request.createdBy || "").trim().toLowerCase() === String(state.currentUser?.email || "").trim().toLowerCase();
+  }
+  return request.stage === state.currentUser?.stage;
+}
+
 function getFilteredRequests() {
   const search = document.getElementById("requestSearchInput")?.value.trim().toLowerCase() || "";
   const selectedStage = document.getElementById("stageFilterSelect")?.value || getDefaultRequestStageFilter();
@@ -1351,6 +1359,7 @@ function getFilteredRequests() {
 
   return state.requests.filter((request) => {
     if (request.archived) return false;
+    if (!requestVisibleToCurrentUser(request)) return false;
     const matchesSearch = !search || [
       request.requestNo,
       request.sellerCompanyName,
