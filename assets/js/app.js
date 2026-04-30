@@ -4593,7 +4593,7 @@ function applyInputFieldDefinitions() {
     }
     wrapper.querySelectorAll(".icon-button").forEach((button) => {
       button.disabled = !canEdit;
-    }
+    });
   });
   renderCustomRequestFields(state.requests.find((item) => item.id === currentEditRequestId) || null);
 }
