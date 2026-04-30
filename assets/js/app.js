@@ -705,6 +705,61 @@ function findUserByEmail(email) {
   return state.users.find((user) => String(user.email || "").trim().toLowerCase() === String(email || "").trim().toLowerCase());
 }
 
+function getFallbackUsers() {
+  return normalizeLoadedState(defaultState()).users || [];
+}
+
+function ensureCriticalStateIntegrity() {
+  const fallback = normalizeLoadedState(defaultState());
+  let changed = false;
+  const mustHaveCollections = [
+    "users",
+    "roles",
+    "stages",
+    "companies",
+    "agents",
+    "importerCompanies",
+    "ports",
+    "banks",
+    "commodities",
+    "documentTypes",
+    "documentCategories",
+    "documentNameSources",
+    "inputFields"
+  ];
+
+  mustHaveCollections.forEach((key) => {
+    if (!Array.isArray(state[key]) || state[key].length === 0) {
+      state[key] = fallback[key];
+      changed = true;
+    }
+  });
+
+  if (!state.currentUser || !state.currentUser.email) {
+    state.currentUser = fallback.currentUser;
+    changed = true;
+  }
+
+  if (!Array.isArray(state.notifications)) {
+    state.notifications = fallback.notifications || [];
+    changed = true;
+  }
+
+  if (!Array.isArray(state.developmentNotes)) {
+    state.developmentNotes = fallback.developmentNotes || [];
+    changed = true;
+  }
+
+  const currentUserRecord = findUserByEmail(state.currentUser?.email) || state.users?.[0];
+  if (currentUserRecord) {
+    const previousEmail = state.currentUser?.email;
+    setCurrentUserFromRecord(currentUserRecord);
+    if (previousEmail !== state.currentUser?.email) changed = true;
+  }
+
+  return changed;
+}
+
 function setCurrentUserFromRecord(user) {
   if (!user) return;
   const effectivePermissions = getEffectivePermissions(user);
@@ -879,7 +934,19 @@ function handleLogin(event) {
   const email = document.getElementById("loginEmailInput").value.trim();
   const password = document.getElementById("loginPasswordInput").value;
   const errorMessage = document.getElementById("loginErrorMessage");
-  const user = findUserByEmail(email);
+  let user = findUserByEmail(email);
+
+  if (!user) {
+    const fallbackUser = getFallbackUsers().find((item) =>
+      String(item.email || "").trim().toLowerCase() === String(email || "").trim().toLowerCase()
+    );
+    if (fallbackUser) {
+      state.users = Array.isArray(state.users) ? state.users : [];
+      state.users.unshift(fallbackUser);
+      user = fallbackUser;
+      dataService.saveState(state);
+    }
+  }
 
   if (!user || user.password !== password) {
     errorMessage.hidden = false;
@@ -1023,12 +1090,17 @@ function hasUnsavedRequestChanges() {
 async function boot() {
   try {
     state = normalizeLoadedState(await dataService.loadState());
+    const repaired = ensureCriticalStateIntegrity();
     reconcileOperationalReferences();
     await dataService.saveState(state);
+    if (repaired) {
+      console.warn("Critical app state was incomplete and has been repaired automatically.");
+    }
   } catch (error) {
     console.error(error);
     alert(`تعذر تحميل البيانات من ${appConfig.dataMode}. سيتم الرجوع للوضع المحلي.`);
     state = defaultState();
+    ensureCriticalStateIntegrity();
   }
 
   restoreUiState();
