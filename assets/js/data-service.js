@@ -333,6 +333,32 @@ const defaultState = () => ({
       active: true
     }
   ],
+  notifications: [
+    {
+      id: 1,
+      title: "مرحباً بك في النظام",
+      message: "ستظهر هنا الإشعارات المرتبطة بالطلبات الجديدة أو الإرجاعات أو الرسائل التشغيلية.",
+      requestId: null,
+      recipientStage: null,
+      recipientEmail: "ahmed@baharsawken.com",
+      category: "system",
+      createdAt: new Date().toISOString(),
+      createdByName: "System",
+      createdByEmail: "system@baharsawken.local"
+    }
+  ],
+  developmentNotes: [
+    {
+      id: 1,
+      title: "بداية مساحة التطوير",
+      details: "استخدم هذه المساحة لتسجيل أفكار التطوير والملاحظات الإدارية المهمة الخاصة بالنظام.",
+      tag: "ملاحظة",
+      status: "open",
+      createdAt: new Date().toISOString(),
+      createdByName: "System",
+      createdByEmail: "system@baharsawken.local"
+    }
+  ],
   inputFields: [
     { id: 1, key: "sellerCompany", label: "الشركة البائعة", mode: "static", bindKey: "sellerCompany", inputType: "select", section: "basic", placeholder: "", required: true, active: true, sortOrder: 1 },
     { id: 2, key: "importerCompany", label: "الشركة المستوردة", mode: "static", bindKey: "importerCompany", inputType: "select", section: "basic", placeholder: "", required: true, active: true, sortOrder: 2 },

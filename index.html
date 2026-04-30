@@ -90,6 +90,7 @@
 
       <nav class="nav-links">
         <button class="nav-link active" data-view="dashboard">لوحة التحكم</button>
+        <button class="nav-link" data-view="development">التطوير والإشعارات</button>
         <button class="nav-link" data-view="requests">الطلبات</button>
         <button class="nav-link" data-view="new-request">طلب جديد</button>
         <button class="nav-link" data-view="references">قاعدة البيانات</button>
@@ -177,6 +178,28 @@
               </div>
             </div>
             <div id="stageTimeline" class="timeline"></div>
+          </section>
+        </div>
+
+        <div class="dashboard-grid claims-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Notifications</p>
+                <h3>إشعاراتي</h3>
+              </div>
+            </div>
+            <div id="notificationsSummaryList" class="timeline"></div>
+          </section>
+
+          <section class="panel" id="developmentSummaryPanel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Development</p>
+                <h3>ملاحظات التطوير الأخيرة</h3>
+              </div>
+            </div>
+            <div id="developmentSummaryList" class="timeline"></div>
           </section>
         </div>
 
@@ -277,6 +300,80 @@
             </section>
           </div>
         </section>
+      </section>
+
+      <section class="view" id="development-view">
+        <div class="dashboard-grid claims-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Inbox</p>
+                <h3>الإشعارات والرسائل التشغيلية</h3>
+              </div>
+            </div>
+            <form id="notificationComposerForm" class="form-grid">
+              <label>
+                <span>عنوان الإشعار</span>
+                <input id="notificationTitleInput" type="text" placeholder="مثال: طلب جديد أو تنبيه تشغيلي">
+              </label>
+              <label>
+                <span>توجيه حسب المرحلة</span>
+                <select id="notificationRecipientStageSelect">
+                  <option value="">كل المراحل</option>
+                  <option value="DataEntry">إدخال البيانات</option>
+                  <option value="InvoiceReview">مراجعة الفاتورة</option>
+                  <option value="FinanceReview">المراجعة المالية</option>
+                  <option value="BankProcessing">إجراءات البنك</option>
+                  <option value="Completed">مكتمل</option>
+                </select>
+              </label>
+              <label class="full-span">
+                <span>توجيه إلى بريد محدد</span>
+                <input id="notificationRecipientEmailInput" type="email" placeholder="اختياري: user@example.com">
+              </label>
+              <label class="full-span">
+                <span>نص الرسالة</span>
+                <textarea id="notificationMessageInput" rows="4" placeholder="اكتب الرسالة التي ستصل للمستخدمين أو الإدارة"></textarea>
+              </label>
+              <div class="full-span submit-group">
+                <button class="primary-button" type="submit">إرسال إشعار</button>
+              </div>
+            </form>
+            <div id="developmentNotificationsList" class="timeline"></div>
+          </section>
+
+          <section class="panel" id="developmentAdminPanel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Admin Development Space</p>
+                <h3>ملاحظات التطوير للإدارة</h3>
+              </div>
+            </div>
+            <form id="developmentNoteForm" class="form-grid">
+              <label>
+                <span>عنوان الملاحظة</span>
+                <input id="developmentNoteTitleInput" type="text" placeholder="مثال: تحسين شاشة الطلبات">
+              </label>
+              <label>
+                <span>التصنيف</span>
+                <select id="developmentNoteTagSelect">
+                  <option value="ملاحظة">ملاحظة</option>
+                  <option value="تحسين">تحسين</option>
+                  <option value="خطأ">خطأ</option>
+                  <option value="فكرة">فكرة</option>
+                </select>
+              </label>
+              <label class="full-span">
+                <span>تفاصيل التطوير</span>
+                <textarea id="developmentNoteDetailsInput" rows="5" placeholder="صف الفكرة أو التعديل المطلوب أو نتيجة الاختبار"></textarea>
+              </label>
+              <div class="full-span submit-group">
+                <button class="primary-button" type="submit">حفظ ملاحظة تطوير</button>
+              </div>
+            </form>
+            <div id="developmentNotesList" class="timeline"></div>
+          </section>
+        </div>
       </section>
 
       <section class="view" id="requests-view">

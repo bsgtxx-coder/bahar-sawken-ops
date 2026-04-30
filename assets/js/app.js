@@ -273,6 +273,7 @@ const referenceConfigs = {
 
 const pageTitles = {
   dashboard: "لوحة التحكم",
+  development: "التطوير والإشعارات",
   requests: "الطلبات",
   "new-request": "طلب جديد",
   references: "قاعدة البيانات",
@@ -284,6 +285,7 @@ const pageTitles = {
 
 const pagePermissionMap = {
   dashboard: "accessDashboard",
+  development: "accessDashboard",
   requests: "accessRequests",
   "new-request": "accessNewRequest",
   references: "accessReferences",
@@ -334,6 +336,23 @@ function formatStageLabel(stageName) {
 function formatRoleLabel(roleName) {
   if (!roleName) return "-";
   return state.roles?.find((role) => role.name === roleName)?.label || roleName;
+}
+
+function formatNotificationCategory(category) {
+  const labels = {
+    request: "طلب",
+    return: "إرجاع",
+    message: "رسالة",
+    system: "تنبيه",
+    development: "تطوير"
+  };
+  return labels[category] || category || "تنبيه";
+}
+
+function resolveNotificationAudienceLabel(item) {
+  if (item?.recipientEmail) return item.recipientEmail;
+  if (item?.recipientStage) return formatStageLabel(item.recipientStage);
+  return "كل المستخدمين";
 }
 
 function getRoleDefinitionByName(roleName) {
@@ -536,6 +555,26 @@ function normalizeLoadedState(loadedState) {
     requestNo: item.requestNo || "",
     notes: item.notes || ""
   }));
+  const notifications = (loadedState.notifications || fallback.notifications || []).map((item, index) => ({
+    ...withAuditDates(item, index),
+    title: item.title || "إشعار",
+    message: item.message || "",
+    requestId: item.requestId ?? null,
+    recipientStage: item.recipientStage ?? null,
+    recipientEmail: item.recipientEmail ?? null,
+    category: item.category || "system",
+    createdByName: item.createdByName || "System",
+    createdByEmail: item.createdByEmail || "system@baharsawken.local"
+  }));
+  const developmentNotes = (loadedState.developmentNotes || fallback.developmentNotes || []).map((item, index) => ({
+    ...withAuditDates(item, index),
+    title: item.title || "ملاحظة تطوير",
+    details: item.details || "",
+    tag: item.tag || "ملاحظة",
+    status: item.status || "open",
+    createdByName: item.createdByName || "System",
+    createdByEmail: item.createdByEmail || "system@baharsawken.local"
+  }));
 
   return {
     ...fallback,
@@ -566,6 +605,8 @@ function normalizeLoadedState(loadedState) {
     inputFields,
     customTables,
     accountEntries,
+    notifications,
+    developmentNotes,
     roles: normalizedRoles,
     companies: (loadedState.companies || fallback.companies || []).map((company, index) => ({
       ...withAuditDates(company, index),
@@ -706,6 +747,10 @@ function restoreAuthSession() {
 }
 
 function userCanAccessView(view, user = state.currentUser) {
+  if (view === "new-request" && currentEditRequestId) {
+    const request = state.requests.find((item) => item.id === currentEditRequestId);
+    if (request && canCurrentUserActOnRequest(request)) return true;
+  }
   const permissionKey = pagePermissionMap[view];
   if (!permissionKey) return true;
   return Boolean(getEffectivePermissions(user)?.[permissionKey]);
@@ -1110,6 +1155,8 @@ function bindStaticEvents() {
   document.getElementById("accountEntryForm").addEventListener("submit", saveAccountEntry);
   document.getElementById("referencesGlobalSearchInput").addEventListener("input", applyReferencesGlobalSearch);
   document.getElementById("printReportsButton")?.addEventListener("click", printReportsView);
+  document.getElementById("notificationComposerForm")?.addEventListener("submit", saveNotificationMessage);
+  document.getElementById("developmentNoteForm")?.addEventListener("submit", saveDevelopmentNote);
 
   const referencesView = document.getElementById("references-view");
   referencesView?.addEventListener("click", (event) => {
@@ -1139,6 +1186,7 @@ function renderApp() {
   safeRenderSection("referenceLists", renderReferenceLists);
   safeRenderSection("accounts", renderAccounts);
   safeRenderSection("reports", renderReports);
+  safeRenderSection("development", renderDevelopmentView);
   safeRenderSection("archiveList", renderArchiveList);
   safeRenderSection("workflow", renderWorkflow);
   safeRenderSection("templateLibrary", renderTemplateLibrary);
@@ -1302,6 +1350,179 @@ function renderDashboard() {
 
   renderClaimsPanels();
   renderAdminPanel();
+  renderNotificationsSummary();
+  renderDevelopmentSummary();
+}
+
+function getVisibleNotifications(user = state.currentUser) {
+  const currentEmail = String(user?.email || "").trim().toLowerCase();
+  const currentStage = user?.stage || "";
+  const isAdmin = Boolean(getEffectivePermissions(user)?.adminPanel);
+  return (state.notifications || [])
+    .filter((item) => {
+      if (isAdmin && !item.recipientEmail && !item.recipientStage) return true;
+      if (!item.recipientEmail && !item.recipientStage) return true;
+      if (item.recipientEmail && String(item.recipientEmail).trim().toLowerCase() === currentEmail) return true;
+      if (item.recipientStage && item.recipientStage === currentStage) return true;
+      if (isAdmin && item.category === "development") return true;
+      return false;
+    })
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+function renderNotificationsSummary() {
+  const container = document.getElementById("notificationsSummaryList");
+  if (!container) return;
+  const notifications = getVisibleNotifications().slice(0, 6);
+  container.innerHTML = notifications.length
+    ? notifications.map((item) => `
+      <article class="timeline-item notification-card">
+        <strong>${escapeHtml(item.title)}</strong>
+        <p>${escapeHtml(item.message || "-")}</p>
+        <p>${escapeHtml(formatPreviewDate(item.createdAt))} • ${escapeHtml(formatNotificationCategory(item.category))}</p>
+        ${item.requestId ? `<p><button class="inline-link" type="button" data-open-request="${item.requestId}">فتح الطلب المرتبط</button></p>` : ""}
+      </article>
+    `).join("")
+    : `<div class="empty-state">لا توجد إشعارات حالياً</div>`;
+}
+
+function renderDevelopmentSummary() {
+  const panel = document.getElementById("developmentSummaryPanel");
+  const list = document.getElementById("developmentSummaryList");
+  if (!panel || !list) return;
+  const canManageDevelopment = Boolean(getEffectivePermissions().adminPanel);
+  panel.hidden = !canManageDevelopment;
+  if (!canManageDevelopment) return;
+  const notes = [...(state.developmentNotes || [])]
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, 5);
+  list.innerHTML = notes.length
+    ? notes.map((item) => `
+      <article class="timeline-item notification-card">
+        <strong>${escapeHtml(item.title)}</strong>
+        <p>${escapeHtml(item.details || "-")}</p>
+        <p>${escapeHtml(item.tag || "ملاحظة")} • ${escapeHtml(formatPreviewDate(item.createdAt))}</p>
+      </article>
+    `).join("")
+    : `<div class="empty-state">لا توجد ملاحظات تطوير بعد</div>`;
+}
+
+function renderDevelopmentView() {
+  const notesPanel = document.getElementById("developmentAdminPanel");
+  const notificationsList = document.getElementById("developmentNotificationsList");
+  const notesList = document.getElementById("developmentNotesList");
+  const stageSelect = document.getElementById("notificationRecipientStageSelect");
+  if (!notificationsList || !notesList) return;
+
+  if (stageSelect && !stageSelect.dataset.initialized) {
+    stageSelect.innerHTML = `<option value="">كل المراحل</option>`;
+    (state.stages || []).forEach((stage) => {
+      const option = document.createElement("option");
+      option.value = stage.name;
+      option.textContent = stage.label || stage.name;
+      stageSelect.appendChild(option);
+    });
+    stageSelect.dataset.initialized = "true";
+  }
+
+  const isAdmin = Boolean(getEffectivePermissions().adminPanel);
+  if (notesPanel) notesPanel.hidden = !isAdmin;
+
+  const notifications = getVisibleNotifications();
+  notificationsList.innerHTML = notifications.length
+    ? notifications.map((item) => `
+      <article class="timeline-item notification-card">
+        <strong>${escapeHtml(item.title)}</strong>
+        <p>${escapeHtml(item.message || "-")}</p>
+        <p>${escapeHtml(formatPreviewDate(item.createdAt))} • ${escapeHtml(formatNotificationCategory(item.category))}</p>
+        <p>${escapeHtml(resolveNotificationAudienceLabel(item))}</p>
+        ${item.requestId ? `<p><button class="inline-link" type="button" data-open-request="${item.requestId}">فتح الطلب المرتبط</button></p>` : ""}
+      </article>
+    `).join("")
+    : `<div class="empty-state">لا توجد إشعارات بعد</div>`;
+
+  const notes = [...(state.developmentNotes || [])].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  notesList.innerHTML = notes.length
+    ? notes.map((item) => `
+      <article class="timeline-item notification-card">
+        <strong>${escapeHtml(item.title)}</strong>
+        <p>${escapeHtml(item.details || "-")}</p>
+        <p>${escapeHtml(item.tag || "ملاحظة")} • ${escapeHtml(item.status || "open")} • ${escapeHtml(formatPreviewDate(item.createdAt))}</p>
+      </article>
+    `).join("")
+    : `<div class="empty-state">لا توجد ملاحظات تطوير بعد</div>`;
+}
+
+async function saveNotificationMessage(event) {
+  event.preventDefault();
+  const titleInput = document.getElementById("notificationTitleInput");
+  const messageInput = document.getElementById("notificationMessageInput");
+  const stageSelect = document.getElementById("notificationRecipientStageSelect");
+  const emailInput = document.getElementById("notificationRecipientEmailInput");
+  if (!titleInput || !messageInput) return;
+
+  const title = titleInput.value.trim();
+  const message = messageInput.value.trim();
+  if (!title || !message) {
+    alert("أدخل عنوان الإشعار ونص الرسالة.");
+    return;
+  }
+
+  createSystemNotification({
+    title,
+    message,
+    recipientStage: stageSelect?.value || null,
+    recipientEmail: emailInput?.value.trim() || null,
+    category: "message"
+  });
+
+  await dataService.saveState(state);
+  event.target.reset();
+  renderApp();
+  alert("تم حفظ الإشعار وإرساله.");
+}
+
+async function saveDevelopmentNote(event) {
+  event.preventDefault();
+  if (!getEffectivePermissions().adminPanel) {
+    alert("هذه المساحة متاحة للإدارة فقط.");
+    return;
+  }
+  const titleInput = document.getElementById("developmentNoteTitleInput");
+  const detailsInput = document.getElementById("developmentNoteDetailsInput");
+  const tagSelect = document.getElementById("developmentNoteTagSelect");
+  if (!titleInput || !detailsInput) return;
+
+  const title = titleInput.value.trim();
+  const details = detailsInput.value.trim();
+  if (!title || !details) {
+    alert("أدخل عنوان الملاحظة وتفاصيلها.");
+    return;
+  }
+
+  state.developmentNotes = state.developmentNotes || [];
+  state.developmentNotes.unshift({
+    id: nextCollectionId(state.developmentNotes),
+    title,
+    details,
+    tag: tagSelect?.value || "ملاحظة",
+    status: "open",
+    createdAt: new Date().toISOString(),
+    createdByName: state.currentUser.name,
+    createdByEmail: state.currentUser.email
+  });
+
+  createSystemNotification({
+    title: `تحديث تطوير: ${title}`,
+    message: details,
+    recipientStage: "SystemAdmin",
+    category: "development"
+  });
+
+  await dataService.saveState(state);
+  event.target.reset();
+  renderApp();
+  alert("تمت إضافة ملاحظة التطوير.");
 }
 
 function renderRequestFilters() {
@@ -1357,6 +1578,53 @@ function requestVisibleToCurrentUser(request) {
     return String(request.createdBy || "").trim().toLowerCase() === String(state.currentUser?.email || "").trim().toLowerCase();
   }
   return request.stage === state.currentUser?.stage;
+}
+
+function canCurrentUserActOnRequest(request) {
+  const permissions = getEffectivePermissions();
+  if (permissions.readOnly) return false;
+  if (canCurrentUserViewAllRequests()) return true;
+  if ((state.currentUser?.stage || "") === "DataEntry") {
+    return request.stage === "DataEntry"
+      && String(request.createdBy || "").trim().toLowerCase() === String(state.currentUser?.email || "").trim().toLowerCase();
+  }
+  return request.stage === state.currentUser?.stage;
+}
+
+function getPreviousStageName(stageName) {
+  const orderedStages = [...(state.stages || [])]
+    .filter((stage) => stage.active !== false)
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  const currentIndex = orderedStages.findIndex((stage) => stage.name === stageName);
+  if (currentIndex <= 0) return null;
+  return orderedStages[currentIndex - 1]?.name || null;
+}
+
+function nextCollectionId(collection) {
+  return (collection || []).length ? Math.max(...collection.map((item) => Number(item.id) || 0)) + 1 : 1;
+}
+
+function createSystemNotification({
+  title,
+  message,
+  requestId = null,
+  recipientStage = null,
+  recipientEmail = null,
+  category = "system"
+}) {
+  state.notifications = state.notifications || [];
+  state.notifications.unshift({
+    id: nextCollectionId(state.notifications),
+    title,
+    message,
+    requestId,
+    recipientStage,
+    recipientEmail,
+    category,
+    createdAt: new Date().toISOString(),
+    createdByName: state.currentUser?.name || "System",
+    createdByEmail: state.currentUser?.email || "system@baharsawken.local"
+  });
 }
 
 function getFilteredRequests() {
@@ -1743,6 +2011,12 @@ function attachDynamicEvents() {
   document.querySelectorAll("[data-archive-request]").forEach((button) => {
     button.onclick = () => archiveRequest(Number(button.dataset.archiveRequest));
   });
+  document.querySelectorAll("[data-forward-request]").forEach((button) => {
+    button.onclick = () => forwardRequestFromDetails(Number(button.dataset.forwardRequest));
+  });
+  document.querySelectorAll("[data-return-request]").forEach((button) => {
+    button.onclick = () => returnRequestToPreviousStage(Number(button.dataset.returnRequest));
+  });
   document.querySelectorAll("[data-delete-request]").forEach((button) => {
     button.onclick = () => deleteRequest(Number(button.dataset.deleteRequest));
   });
@@ -2038,6 +2312,11 @@ function editRequest(id) {
 function openRequestDetails(id) {
   const request = state.requests.find((item) => item.id === id);
   if (!request) return;
+  const canAct = canCurrentUserActOnRequest(request);
+  const previousStage = getPreviousStageName(request.stage);
+  const nextStage = getNextStageName(request.stage);
+  const canForward = canAct && request.stage !== "Completed" && nextStage && nextStage !== request.stage;
+  const canReturn = canAct && Boolean(previousStage);
   const documentsHtml = (request.documents || []).length
     ? request.documents.map((doc) => `
       <article class="document-item">
@@ -2071,10 +2350,11 @@ function openRequestDetails(id) {
         <div>
           <p class="eyebrow">Request View</p>
           <h4>${escapeHtml(request.requestNo)}</h4>
+          <p class="preview-context-copy">${escapeHtml(formatStageLabel(request.stage))} • ${escapeHtml(request.status)}</p>
         </div>
         <div class="document-actions">
           <span class="badge">${escapeHtml(request.status)}</span>
-          <span class="badge">${escapeHtml(request.stage)}</span>
+          <span class="badge">${escapeHtml(formatStageLabel(request.stage))}</span>
         </div>
       </div>
       <div class="preview-grid">
@@ -2098,15 +2378,99 @@ function openRequestDetails(id) {
         <h5>سجل الحركة والتعليقات</h5>
         <div class="timeline">${historyHtml}</div>
       </section>
-      <div class="document-actions">
-        <button class="secondary-button" type="button" data-edit-request="${request.id}">فتح للتعديل</button>
-        <button class="ghost-button" type="button" data-archive-request="${request.id}">أرشفة</button>
-        <button class="ghost-button danger-link" type="button" data-delete-request="${request.id}">حذف</button>
-      </div>
+      <section class="preview-section preview-actions-section">
+        <h5>إجراءات الطلب</h5>
+        <div class="document-actions">
+          ${canAct ? `<button class="secondary-button" type="button" data-edit-request="${request.id}">فتح للتعديل</button>` : ""}
+          ${canForward ? `<button class="primary-button" type="button" data-forward-request="${request.id}">إرسال إلى ${escapeHtml(formatStageLabel(nextStage))}</button>` : ""}
+          ${canReturn ? `<button class="ghost-button" type="button" data-return-request="${request.id}">إرجاع إلى ${escapeHtml(formatStageLabel(previousStage))}</button>` : ""}
+          ${state.currentUser.permissions?.archiveRequests ? `<button class="ghost-button" type="button" data-archive-request="${request.id}">أرشفة</button>` : ""}
+          ${state.currentUser.permissions?.deleteRequests ? `<button class="ghost-button danger-link" type="button" data-delete-request="${request.id}">حذف</button>` : ""}
+        </div>
+        ${!canAct ? `<p class="preview-note">هذه النافذة للعرض فقط لأن الطلب ليس ضمن المرحلة التشغيلية الحالية للمستخدم أو أن الحساب مقيد للقراءة.</p>` : ""}
+      </section>
     </section>
   `;
 
   openDetailsDialog(`تفاصيل الطلب ${request.requestNo}`, "Request Details", html);
+}
+
+async function forwardRequestFromDetails(id) {
+  const request = state.requests.find((item) => item.id === id);
+  if (!request || !canCurrentUserActOnRequest(request)) return;
+  const nextStage = getNextStageName(request.stage);
+  if (!nextStage || nextStage === request.stage) {
+    alert("لا توجد مرحلة تالية معرفة لهذا الطلب.");
+    return;
+  }
+  request.history = buildNextHistory(request.history || [], {
+    action: "Forwarded From Details",
+    fromStage: request.stage,
+    toStage: nextStage,
+    comment: `تم إرسال الطلب إلى ${formatStageLabel(nextStage)} من نافذة التفاصيل`,
+    actor: state.currentUser.name,
+    actorEmail: state.currentUser.email
+  });
+  request.stage = nextStage;
+  request.status = nextStage === "Completed" ? "Completed" : "Submitted";
+  request.updatedAt = new Date().toISOString();
+
+  createSystemNotification({
+    title: `طلب جديد في ${formatStageLabel(nextStage)}`,
+    message: `تم تحويل الطلب ${request.requestNo} إلى مرحلتك بواسطة ${state.currentUser.name}.`,
+    requestId: request.id,
+    recipientStage: nextStage,
+    category: "request"
+  });
+
+  await persistLocalOrRemote(request);
+  if (appConfig.dataMode === "supabase") {
+    await dataService.saveState(state);
+  }
+  closeDetailsDialog();
+  renderApp();
+  alert(`تم إرسال الطلب إلى ${formatStageLabel(nextStage)}.`);
+}
+
+async function returnRequestToPreviousStage(id) {
+  const request = state.requests.find((item) => item.id === id);
+  if (!request || !canCurrentUserActOnRequest(request)) return;
+  const previousStage = getPreviousStageName(request.stage);
+  if (!previousStage) {
+    alert("لا توجد مرحلة سابقة لإرجاع الطلب إليها.");
+    return;
+  }
+  const reason = promptRequiredNote(`سبب إرجاع الطلب ${request.requestNo} إلى ${formatStageLabel(previousStage)}`, "نواقص أو ملاحظات تحتاج إلى المعالجة");
+  if (reason === null) return;
+
+  request.history = buildNextHistory(request.history || [], {
+    action: "Returned To Previous Stage",
+    fromStage: request.stage,
+    toStage: previousStage,
+    comment: reason,
+    actor: state.currentUser.name,
+    actorEmail: state.currentUser.email
+  });
+  request.stage = previousStage;
+  request.status = "Returned";
+  request.updatedAt = new Date().toISOString();
+
+  createSystemNotification({
+    title: `تم إرجاع الطلب ${request.requestNo}`,
+    message: `أُرجع الطلب إلى ${formatStageLabel(previousStage)}. السبب: ${reason}`,
+    requestId: request.id,
+    recipientStage: previousStage,
+    recipientEmail: previousStage === "DataEntry" ? request.createdBy : null,
+    category: "return"
+  });
+
+  await persistLocalOrRemote(request);
+  if (appConfig.dataMode === "supabase") {
+    await dataService.saveState(state);
+  }
+  closeDetailsDialog();
+  renderApp();
+  alert(`تم إرجاع الطلب إلى ${formatStageLabel(previousStage)}.`);
 }
 
 function openCompanyDetails(companyId, companyType = "auto") {
@@ -2743,7 +3107,20 @@ async function submitRequest(mode) {
       state.requests.unshift(payload);
     }
 
+    if (mode !== "draft" && nextStage && nextStage !== currentStage) {
+      createSystemNotification({
+        title: `طلب جديد في ${formatStageLabel(nextStage)}`,
+        message: `الطلب ${payload.requestNo} متاح الآن في مرحلة ${formatStageLabel(nextStage)}.`,
+        requestId: payload.id,
+        recipientStage: nextStage,
+        category: "request"
+      });
+    }
+
     await persistLocalOrRemote(payload);
+    if (appConfig.dataMode === "supabase") {
+      await dataService.saveState(state);
+    }
     clearForm();
     resetRequestFilters();
     currentView = "requests";
