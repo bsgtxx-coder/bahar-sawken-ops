@@ -1321,6 +1321,15 @@ function renderRequestFilters() {
   if (stageFilter && (!stageFilter.value || stageFilter.value === "all") && preferredStage !== "all") {
     stageFilter.value = preferredStage;
   }
+
+  if (!canCurrentUserViewAllRequests()) {
+    stageFilter.value = preferredStage;
+    stageFilter.disabled = true;
+    stageFilter.title = "مثبت على مرحلة المستخدم الحالية";
+  } else {
+    stageFilter.disabled = false;
+    stageFilter.title = "";
+  }
 }
 
 function resetRequestFilters() {
