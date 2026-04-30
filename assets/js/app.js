@@ -430,13 +430,14 @@ function getDocumentNameSourceMeta(sourceKey) {
 function normalizeLoadedState(loadedState) {
   const fallback = defaultState();
   const nowIso = new Date().toISOString();
+  const safeList = (value, fallbackValue) => Array.isArray(value) && value.length ? value : fallbackValue;
   const withAuditDates = (item, index) => ({
     ...item,
     id: item.id ?? index + 1,
     createdAt: item.createdAt || item.updatedAt || nowIso,
     updatedAt: item.updatedAt || item.createdAt || nowIso
   });
-  const normalizedRoles = (loadedState.roles || fallback.roles || []).map((item, index) => ({
+  const normalizedRoles = safeList(loadedState.roles, fallback.roles || []).map((item, index) => ({
     ...withAuditDates(item, index),
     name: item.name || "",
     label: item.label || item.name || "",
@@ -480,7 +481,7 @@ function normalizeLoadedState(loadedState) {
     }, fallback.currentUser.permissions)
   };
 
-  const agents = (loadedState.agents || fallback.agents || []).map((agent, index) => ({
+  const agents = safeList(loadedState.agents, fallback.agents || []).map((agent, index) => ({
     ...(fallback.agents?.[Math.min(index, (fallback.agents?.length || 1) - 1)] || {}),
     ...withAuditDates(agent, index),
     archived: agent.archived ?? false,
@@ -491,13 +492,13 @@ function normalizeLoadedState(loadedState) {
     serviceFeeBalance: Number(agent.serviceFeeBalance ?? 0),
     notes: agent.notes ?? ""
   }));
-  const importerCompanies = (loadedState.importerCompanies || fallback.importerCompanies || []).map((company, index) => ({
+  const importerCompanies = safeList(loadedState.importerCompanies, fallback.importerCompanies || []).map((company, index) => ({
     ...withAuditDates(company, index),
     archived: company.archived ?? false,
     archivedAt: company.archivedAt ?? null,
     archiveReason: company.archiveReason ?? ""
   }));
-  const documentTypes = (loadedState.documentTypes || fallback.documentTypes || []).map((item, index) => ({
+  const documentTypes = safeList(loadedState.documentTypes, fallback.documentTypes || []).map((item, index) => ({
     ...(fallback.documentTypes?.[Math.min(index, (fallback.documentTypes?.length || 1) - 1)] || {}),
     ...withAuditDates(item, index),
     requiredStages: Array.isArray(item.requiredStages) ? item.requiredStages : splitCommaValues(item.requiredStages),
@@ -505,14 +506,14 @@ function normalizeLoadedState(loadedState) {
     allowCustomTitle: item.allowCustomTitle ?? false,
     active: item.active ?? true
   }));
-  const documentCategories = (loadedState.documentCategories || fallback.documentCategories || []).map((item, index) => ({
+  const documentCategories = safeList(loadedState.documentCategories, fallback.documentCategories || []).map((item, index) => ({
     ...withAuditDates(item, index),
     key: item.key || "",
     label: item.label || item.key || "",
     description: item.description || "",
     active: item.active ?? true
   }));
-  const documentNameSources = (loadedState.documentNameSources || fallback.documentNameSources || []).map((item, index) => ({
+  const documentNameSources = safeList(loadedState.documentNameSources, fallback.documentNameSources || []).map((item, index) => ({
     ...withAuditDates(item, index),
     key: item.key || "",
     label: item.label || item.key || "",
@@ -520,7 +521,7 @@ function normalizeLoadedState(loadedState) {
     description: item.description || "",
     active: item.active ?? true
   }));
-  const inputFields = (loadedState.inputFields || fallback.inputFields || []).map((item, index) => ({
+  const inputFields = safeList(loadedState.inputFields, fallback.inputFields || []).map((item, index) => ({
     ...withAuditDates(item, index),
     mode: item.mode || "static",
     bindKey: item.bindKey || item.key || "",
@@ -531,7 +532,7 @@ function normalizeLoadedState(loadedState) {
     active: item.active ?? true,
     sortOrder: Number(item.sortOrder ?? index + 1)
   }));
-  const customTables = (loadedState.customTables || fallback.customTables || []).map((item, index) => ({
+  const customTables = safeList(loadedState.customTables, fallback.customTables || []).map((item, index) => ({
     ...withAuditDates(item, index),
     key: item.key || `table_${index + 1}`,
     name: item.name || "جدول جديد",
@@ -540,7 +541,7 @@ function normalizeLoadedState(loadedState) {
     rows: Array.isArray(item.rows) ? item.rows.map((row, rowIndex) => ({ id: row.id ?? rowIndex + 1, ...row })) : [],
     active: item.active ?? true
   }));
-  const accountEntries = (loadedState.accountEntries || fallback.accountEntries || []).map((item, index) => ({
+  const accountEntries = safeList(loadedState.accountEntries, fallback.accountEntries || []).map((item, index) => ({
     ...withAuditDates(item, index),
     entryType: item.entryType || "manual",
     title: item.title || "حركة مالية",
@@ -555,7 +556,7 @@ function normalizeLoadedState(loadedState) {
     requestNo: item.requestNo || "",
     notes: item.notes || ""
   }));
-  const notifications = (loadedState.notifications || fallback.notifications || []).map((item, index) => ({
+  const notifications = safeList(loadedState.notifications, fallback.notifications || []).map((item, index) => ({
     ...withAuditDates(item, index),
     title: item.title || "إشعار",
     message: item.message || "",
@@ -566,7 +567,7 @@ function normalizeLoadedState(loadedState) {
     createdByName: item.createdByName || "System",
     createdByEmail: item.createdByEmail || "system@baharsawken.local"
   }));
-  const developmentNotes = (loadedState.developmentNotes || fallback.developmentNotes || []).map((item, index) => ({
+  const developmentNotes = safeList(loadedState.developmentNotes, fallback.developmentNotes || []).map((item, index) => ({
     ...withAuditDates(item, index),
     title: item.title || "ملاحظة تطوير",
     details: item.details || "",
@@ -580,7 +581,7 @@ function normalizeLoadedState(loadedState) {
     ...fallback,
     ...loadedState,
     currentUser,
-    users: (loadedState.users || fallback.users).map((user, index) => ({
+    users: safeList(loadedState.users, fallback.users).map((user, index) => ({
       ...fallback.users[0],
       ...withAuditDates(user, index),
       password: user.password || fallback.users[0].password || "123456",
@@ -608,7 +609,7 @@ function normalizeLoadedState(loadedState) {
     notifications,
     developmentNotes,
     roles: normalizedRoles,
-    companies: (loadedState.companies || fallback.companies || []).map((company, index) => ({
+    companies: safeList(loadedState.companies, fallback.companies || []).map((company, index) => ({
       ...withAuditDates(company, index),
       archived: company.archived ?? false,
       archivedAt: company.archivedAt ?? null,
@@ -616,7 +617,7 @@ function normalizeLoadedState(loadedState) {
       name: company.name ?? "",
       country: company.country ?? ""
     })),
-    stages: (loadedState.stages || fallback.stages).map((stage, index) => ({
+    stages: safeList(loadedState.stages, fallback.stages).map((stage, index) => ({
       ...fallback.stages[Math.min(index, fallback.stages.length - 1)],
       ...withAuditDates(stage, index),
       viewFields: Array.isArray(stage.viewFields) ? stage.viewFields : [],
@@ -625,22 +626,22 @@ function normalizeLoadedState(loadedState) {
       optionalDocuments: Array.isArray(stage.optionalDocuments) ? stage.optionalDocuments : [],
       active: stage.active ?? true
     })),
-    ports: (loadedState.ports || fallback.ports || []).map((item, index) => ({
+    ports: safeList(loadedState.ports, fallback.ports || []).map((item, index) => ({
       ...withAuditDates(item, index),
       name: item.name ?? ""
     })),
-    banks: (loadedState.banks || fallback.banks || []).map((item, index) => ({
+    banks: safeList(loadedState.banks, fallback.banks || []).map((item, index) => ({
       ...withAuditDates(item, index),
       name: item.name ?? "",
       branch: item.branch ?? ""
     })),
-    commodities: (loadedState.commodities || fallback.commodities || []).map((item, index) => ({
+    commodities: safeList(loadedState.commodities, fallback.commodities || []).map((item, index) => ({
       ...withAuditDates(item, index),
       name: item.name ?? "",
       hsCode: item.hsCode ?? ""
     })),
-    generationTemplates: loadedState.generationTemplates ?? fallback.generationTemplates ?? [],
-    requests: (loadedState.requests || fallback.requests).map((request) => ({
+    generationTemplates: safeList(loadedState.generationTemplates, fallback.generationTemplates ?? []),
+    requests: safeList(loadedState.requests, fallback.requests).map((request) => ({
       ...request,
       sellerCompanyId: request.sellerCompanyId ?? request.companyId ?? null,
       sellerCompanyName: request.sellerCompanyName ?? request.companyName ?? "",
