@@ -11,6 +11,7 @@ let currentReferenceEditId = null;
 let currentCustomTableId = null;
 let currentCustomTableRowId = null;
 let staticEventsBound = false;
+let authFallbackEventsBound = false;
 const collapsedDatabasePanels = {};
 const uploadProgressState = {};
 const uploadProgressTimers = {};
@@ -1097,6 +1098,40 @@ function handlePasswordRecovery(event) {
   alert("تمت إعادة تعيين كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن.");
 }
 
+function bindAuthFallbackEvents() {
+  if (authFallbackEventsBound) return;
+  authFallbackEventsBound = true;
+
+  document.getElementById("loginForm")?.addEventListener("submit", handleLogin);
+  document.getElementById("openPasswordRecoveryButton")?.addEventListener("click", openPasswordRecoveryDialog);
+  document.getElementById("closePasswordRecoveryDialogButton")?.addEventListener("click", closePasswordRecoveryDialog);
+  document.getElementById("cancelPasswordRecoveryDialogButton")?.addEventListener("click", closePasswordRecoveryDialog);
+  document.getElementById("passwordRecoveryForm")?.addEventListener("submit", handlePasswordRecovery);
+  document.getElementById("logoutButton")?.addEventListener("click", logoutCurrentUser);
+
+  document.getElementById("loginEmailInput")?.addEventListener("input", () => {
+    const errorMessage = document.getElementById("loginErrorMessage");
+    if (errorMessage) errorMessage.hidden = true;
+  });
+
+  document.getElementById("loginPasswordInput")?.addEventListener("input", () => {
+    const errorMessage = document.getElementById("loginErrorMessage");
+    if (errorMessage) errorMessage.hidden = true;
+  });
+
+  [
+    "passwordRecoveryEmailInput",
+    "passwordRecoveryNameInput",
+    "passwordRecoveryNewPasswordInput",
+    "passwordRecoveryConfirmPasswordInput"
+  ].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", () => {
+      const errorMessage = document.getElementById("passwordRecoveryErrorMessage");
+      if (errorMessage) errorMessage.hidden = true;
+    });
+  });
+}
+
 function hasUnsavedRequestChanges() {
   if (currentView !== "new-request") return false;
 
@@ -1161,6 +1196,7 @@ async function boot() {
   state = normalizeLoadedState(defaultState());
   ensureCriticalStateIntegrity();
   restoreUiState();
+  bindAuthFallbackEvents();
   try {
     bindStaticEvents();
   } catch (error) {
@@ -1209,38 +1245,23 @@ async function boot() {
 function bindStaticEvents() {
   if (staticEventsBound) return;
   staticEventsBound = true;
+  bindAuthFallbackEvents();
   const bind = (id, eventName, handler) => document.getElementById(id)?.addEventListener(eventName, handler);
+  const safeBind = (id, eventName, handler) => {
+    const element = document.getElementById(id);
+    if (!element) {
+      console.warn(`Skipped binding for missing element: ${id}`);
+      return;
+    }
+    element.addEventListener(eventName, handler);
+  };
 
   bind("toggleSidebarButton", "click", toggleSidebar);
   bind("topbarPrimaryButton", "click", handleTopbarPrimaryAction);
-  bind("loginForm", "submit", handleLogin);
-  bind("openPasswordRecoveryButton", "click", openPasswordRecoveryDialog);
-  bind("closePasswordRecoveryDialogButton", "click", closePasswordRecoveryDialog);
-  bind("cancelPasswordRecoveryDialogButton", "click", closePasswordRecoveryDialog);
-  bind("passwordRecoveryForm", "submit", handlePasswordRecovery);
   bind("openAccountDialogButton", "click", openAccountProfileDialog);
-  bind("logoutButton", "click", logoutCurrentUser);
   bind("closeAccountProfileDialogButton", "click", closeAccountProfileDialog);
   bind("cancelAccountProfileDialogButton", "click", closeAccountProfileDialog);
   bind("accountProfileForm", "submit", saveAccountProfile);
-  bind("loginEmailInput", "input", () => {
-    document.getElementById("loginErrorMessage").hidden = true;
-  });
-  bind("loginPasswordInput", "input", () => {
-    document.getElementById("loginErrorMessage").hidden = true;
-  });
-  bind("passwordRecoveryEmailInput", "input", () => {
-    document.getElementById("passwordRecoveryErrorMessage").hidden = true;
-  });
-  bind("passwordRecoveryNameInput", "input", () => {
-    document.getElementById("passwordRecoveryErrorMessage").hidden = true;
-  });
-  bind("passwordRecoveryNewPasswordInput", "input", () => {
-    document.getElementById("passwordRecoveryErrorMessage").hidden = true;
-  });
-  bind("passwordRecoveryConfirmPasswordInput", "input", () => {
-    document.getElementById("passwordRecoveryErrorMessage").hidden = true;
-  });
   document.querySelectorAll(".nav-link").forEach((button) => {
     button.addEventListener("click", () => {
       const targetView = button.dataset.view;
@@ -1258,28 +1279,28 @@ function bindStaticEvents() {
     });
   });
 
-  document.getElementById("requestSearchInput").addEventListener("input", renderRequestsTable);
-  document.getElementById("stageFilterSelect").addEventListener("change", renderRequestsTable);
-  document.getElementById("statusFilterSelect").addEventListener("change", renderRequestsTable);
+  safeBind("requestSearchInput", "input", renderRequestsTable);
+  safeBind("stageFilterSelect", "change", renderRequestsTable);
+  safeBind("statusFilterSelect", "change", renderRequestsTable);
 
-  document.getElementById("importerCompanySelect").addEventListener("change", (event) => {
+  safeBind("importerCompanySelect", "change", (event) => {
     syncAgentFromImporterSelection(Number(event.target.value));
   });
 
-  document.getElementById("commoditySelect").addEventListener("change", (event) => {
+  safeBind("commoditySelect", "change", (event) => {
     const commodity = state.commodities.find((item) => item.id === Number(event.target.value));
     if (commodity) {
       document.getElementById("hsCodeInput").value = commodity.hsCode || "";
     }
   });
 
-  document.getElementById("invoiceValueInput").addEventListener("input", syncFinancialCalculation);
-  document.getElementById("serviceFeeRateInput").addEventListener("input", syncFinancialCalculation);
+  safeBind("invoiceValueInput", "input", syncFinancialCalculation);
+  safeBind("serviceFeeRateInput", "input", syncFinancialCalculation);
 
-  document.getElementById("resetFormButton").addEventListener("click", clearForm);
-  document.getElementById("returnRequestButton").addEventListener("click", returnCurrentEditingRequest);
+  safeBind("resetFormButton", "click", clearForm);
+  safeBind("returnRequestButton", "click", returnCurrentEditingRequest);
 
-  document.getElementById("requestForm").addEventListener("submit", async (event) => {
+  safeBind("requestForm", "submit", async (event) => {
     event.preventDefault();
     const mode = event.submitter?.dataset.submitMode || "draft";
     if (mode === "submit" && !event.currentTarget.reportValidity()) return;
@@ -1290,22 +1311,22 @@ function bindStaticEvents() {
     button.addEventListener("click", () => openReferenceDialog(button.dataset.referenceModal));
   });
 
-  document.getElementById("saveReferenceButton").addEventListener("click", saveReference);
-  document.getElementById("closeReferenceDialogButton").addEventListener("click", closeReferenceDialog);
-  document.getElementById("cancelReferenceDialogButton").addEventListener("click", closeReferenceDialog);
-  document.getElementById("saveGenerationTemplateButton").addEventListener("click", saveGenerationTemplate);
-  document.getElementById("closeTemplatePreviewButton").addEventListener("click", closeTemplatePreview);
-  document.getElementById("closeTemplatePreviewFooterButton").addEventListener("click", closeTemplatePreview);
-  document.getElementById("closeDetailsDialogButton").addEventListener("click", closeDetailsDialog);
-  document.getElementById("closeDetailsDialogFooterButton").addEventListener("click", closeDetailsDialog);
-  document.getElementById("closeCustomTableRecordDialogButton").addEventListener("click", closeCustomTableRecordDialog);
-  document.getElementById("cancelCustomTableRecordDialogButton").addEventListener("click", closeCustomTableRecordDialog);
-  document.getElementById("customTableRecordForm").addEventListener("submit", saveCustomTableRecord);
-  document.getElementById("closeAccountEntryDialogButton").addEventListener("click", closeAccountEntryDialog);
-  document.getElementById("cancelAccountEntryDialogButton").addEventListener("click", closeAccountEntryDialog);
-  document.getElementById("accountEntryTypeInput").addEventListener("change", toggleAccountEntryMode);
-  document.getElementById("accountEntryForm").addEventListener("submit", saveAccountEntry);
-  document.getElementById("referencesGlobalSearchInput").addEventListener("input", applyReferencesGlobalSearch);
+  safeBind("saveReferenceButton", "click", saveReference);
+  safeBind("closeReferenceDialogButton", "click", closeReferenceDialog);
+  safeBind("cancelReferenceDialogButton", "click", closeReferenceDialog);
+  safeBind("saveGenerationTemplateButton", "click", saveGenerationTemplate);
+  safeBind("closeTemplatePreviewButton", "click", closeTemplatePreview);
+  safeBind("closeTemplatePreviewFooterButton", "click", closeTemplatePreview);
+  safeBind("closeDetailsDialogButton", "click", closeDetailsDialog);
+  safeBind("closeDetailsDialogFooterButton", "click", closeDetailsDialog);
+  safeBind("closeCustomTableRecordDialogButton", "click", closeCustomTableRecordDialog);
+  safeBind("cancelCustomTableRecordDialogButton", "click", closeCustomTableRecordDialog);
+  safeBind("customTableRecordForm", "submit", saveCustomTableRecord);
+  safeBind("closeAccountEntryDialogButton", "click", closeAccountEntryDialog);
+  safeBind("cancelAccountEntryDialogButton", "click", closeAccountEntryDialog);
+  safeBind("accountEntryTypeInput", "change", toggleAccountEntryMode);
+  safeBind("accountEntryForm", "submit", saveAccountEntry);
+  safeBind("referencesGlobalSearchInput", "input", applyReferencesGlobalSearch);
   document.getElementById("printReportsButton")?.addEventListener("click", printReportsView);
   document.getElementById("notificationComposerForm")?.addEventListener("submit", saveNotificationMessage);
   document.getElementById("developmentNoteForm")?.addEventListener("submit", saveDevelopmentNote);
@@ -3685,7 +3706,8 @@ async function saveReference() {
   }
 
   currentReferenceEditId = null;
-  document.getElementById("referenceDialog").close();
+  const referenceDialog = document.getElementById("referenceDialog");
+  if (referenceDialog?.open) referenceDialog.close();
   populateFormOptions();
   renderReferenceLists();
   renderDashboard();
@@ -5536,7 +5558,8 @@ function openTemplatePreview(title, html) {
 }
 
 function closeTemplatePreview() {
-  document.getElementById("templatePreviewDialog").close();
+  const dialog = document.getElementById("templatePreviewDialog");
+  if (dialog?.open) dialog.close();
 }
 
 function buildBoundInvoicePreview(request) {
@@ -5785,4 +5808,23 @@ function normalizeDocumentDigits(root = document.body) {
   });
 }
 
-boot();
+if (typeof window !== "undefined") {
+  window.__baharOpsAuthApi = {
+    handleLogin,
+    openPasswordRecoveryDialog,
+    closePasswordRecoveryDialog,
+    handlePasswordRecovery,
+    logoutCurrentUser,
+    showLoginScreen
+  };
+}
+
+boot().catch((error) => {
+  console.error("Fatal boot error", error);
+  try {
+    bindAuthFallbackEvents();
+    showLoginScreen();
+  } catch (fallbackError) {
+    console.error("Failed to activate auth fallback", fallbackError);
+  }
+});
