@@ -1126,6 +1126,7 @@ function bindStaticEvents() {
   document.getElementById("serviceFeeRateInput").addEventListener("input", syncFinancialCalculation);
 
   document.getElementById("resetFormButton").addEventListener("click", clearForm);
+  document.getElementById("returnRequestButton").addEventListener("click", returnCurrentEditingRequest);
 
   document.getElementById("requestForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1589,6 +1590,68 @@ function canCurrentUserActOnRequest(request) {
       && String(request.createdBy || "").trim().toLowerCase() === String(state.currentUser?.email || "").trim().toLowerCase();
   }
   return request.stage === state.currentUser?.stage;
+}
+
+const alwaysReadonlyFieldKeys = new Set(["agent", "serviceFeeAmount"]);
+const fieldSectionFallbackMap = {
+  sellerCompany: "basic",
+  importerCompany: "basic",
+  agent: "basic",
+  proformaInvoice: "basic",
+  finalInvoice: "basic",
+  invoiceValue: "basic",
+  blNumber: "basic",
+  blDate: "basic",
+  origin: "basic",
+  cooNumber: "basic",
+  cooDate: "basic",
+  commodity: "basic",
+  hsCode: "basic",
+  port: "basic",
+  bank: "basic",
+  transactionType: "basic",
+  importPermit: "basic",
+  notes: "basic",
+  serviceFeeRate: "finance",
+  serviceFeeAmount: "finance",
+  financeNotes: "finance"
+};
+
+function getFieldSectionKey(bindKey) {
+  return (state.inputFields || []).find((item) => item.bindKey === bindKey || item.key === bindKey)?.section || fieldSectionFallbackMap[bindKey] || "basic";
+}
+
+function stageAllowsEditField(bindKey, stageName = getCurrentEditingStage(), request = state.requests.find((item) => item.id === currentEditRequestId)) {
+  const permissions = getEffectivePermissions();
+  if (permissions.readOnly) return false;
+  if (request && !canCurrentUserActOnRequest(request)) return false;
+  if (stageName === "DataEntry") return true;
+
+  const roleDefinition = getRoleDefinitionByName(state.currentUser?.role);
+  const stageMeta = getStageMeta(stageName);
+  const sectionKey = getFieldSectionKey(bindKey);
+  const stageEditable = stageMeta?.editableFields || [];
+  const roleEditable = roleDefinition?.editableFields || [];
+  const combined = new Set([...stageEditable, ...roleEditable]);
+
+  if (combined.has(bindKey) || combined.has(sectionKey)) return true;
+  return false;
+}
+
+function stageAllowsEditDocuments(stageName = getCurrentEditingStage(), request = state.requests.find((item) => item.id === currentEditRequestId)) {
+  const permissions = getEffectivePermissions();
+  if (permissions.readOnly) return false;
+  if (request && !canCurrentUserActOnRequest(request)) return false;
+  if (stageName === "DataEntry") return true;
+  const roleDefinition = getRoleDefinitionByName(state.currentUser?.role);
+  const stageMeta = getStageMeta(stageName);
+  const combined = new Set([...(stageMeta?.editableFields || []), ...(roleDefinition?.editableFields || [])]);
+  return combined.has("documents");
+}
+
+function canClearCurrentRequestForm(stageName = getCurrentEditingStage()) {
+  if (!currentEditRequestId) return !getEffectivePermissions().readOnly;
+  return stageName === "DataEntry" && !getEffectivePermissions().readOnly;
 }
 
 function getPreviousStageName(stageName) {
@@ -2432,7 +2495,7 @@ async function forwardRequestFromDetails(id) {
   alert(`تم إرسال الطلب إلى ${formatStageLabel(nextStage)}.`);
 }
 
-async function returnRequestToPreviousStage(id) {
+async function returnRequestToPreviousStage(id, options = {}) {
   const request = state.requests.find((item) => item.id === id);
   if (!request || !canCurrentUserActOnRequest(request)) return;
   const previousStage = getPreviousStageName(request.stage);
@@ -2468,7 +2531,14 @@ async function returnRequestToPreviousStage(id) {
   if (appConfig.dataMode === "supabase") {
     await dataService.saveState(state);
   }
-  closeDetailsDialog();
+  if (options.closeDialogAfter !== false) {
+    closeDetailsDialog();
+  }
+  if (options.fromForm) {
+    currentEditRequestId = null;
+    currentView = "requests";
+    saveUiState();
+  }
   renderApp();
   alert(`تم إرجاع الطلب إلى ${formatStageLabel(previousStage)}.`);
 }
@@ -2863,6 +2933,11 @@ function hydrateForm(request) {
 }
 
 function clearForm() {
+  const stageName = getCurrentEditingStage();
+  if (!canClearCurrentRequestForm(stageName)) {
+    alert("لا يمكن تفريغ حقول هذا الطلب في هذه المرحلة.");
+    return;
+  }
   setRequestFormBusy(false);
   currentEditRequestId = null;
   saveUiState();
@@ -2880,8 +2955,9 @@ function setRequestFormBusy(isBusy, mode = "draft") {
   const saveDraftButton = document.getElementById("saveDraftButton");
   const submitRequestButton = document.getElementById("submitRequestButton");
   const resetFormButton = document.getElementById("resetFormButton");
+  const returnRequestButton = document.getElementById("returnRequestButton");
 
-  [saveDraftButton, submitRequestButton, resetFormButton].forEach((button) => {
+  [saveDraftButton, submitRequestButton, resetFormButton, returnRequestButton].forEach((button) => {
     if (!button) return;
     button.disabled = isBusy;
   });
@@ -3058,9 +3134,13 @@ function gatherRequestFormData() {
 
 async function submitRequest(mode) {
   try {
-    const formData = gatherRequestFormData();
     const existing = state.requests.find((request) => request.id === currentEditRequestId);
+    if (existing && !canCurrentUserActOnRequest(existing)) {
+      alert("ليس لديك صلاحية تعديل هذا الطلب في مرحلته الحالية.");
+      return;
+    }
     const currentStage = existing?.stage || "DataEntry";
+    const formData = enforceStageEditableFields(existing, gatherRequestFormData(), currentStage);
     const duplicateBl = state.requests.find((request) =>
       request.id !== existing?.id &&
       normalizeValue(request.blNumber) &&
@@ -3155,6 +3235,85 @@ function buildNextHistory(history, entry) {
       ...entry
     }
   ];
+}
+
+function enforceStageEditableFields(existing, formData, stageName = existing?.stage || getCurrentEditingStage()) {
+  if (!existing || stageName === "DataEntry") return formData;
+  const result = { ...formData };
+  const restoreIfLocked = (fieldKey, applyExisting) => {
+    if (!stageAllowsEditField(fieldKey, stageName, existing)) applyExisting();
+  };
+
+  restoreIfLocked("sellerCompany", () => {
+    result.sellerCompanyId = existing.sellerCompanyId;
+    result.sellerCompanyName = existing.sellerCompanyName;
+  });
+  restoreIfLocked("importerCompany", () => {
+    result.importerCompanyId = existing.importerCompanyId;
+    result.importerCompanyName = existing.importerCompanyName;
+  });
+  restoreIfLocked("agent", () => {
+    result.agent = existing.agent;
+  });
+  restoreIfLocked("proformaInvoice", () => {
+    result.proformaInvoice = existing.proformaInvoice;
+  });
+  restoreIfLocked("finalInvoice", () => {
+    result.finalInvoice = existing.finalInvoice;
+  });
+  restoreIfLocked("invoiceValue", () => {
+    result.invoiceValue = existing.invoiceValue;
+  });
+  restoreIfLocked("blNumber", () => {
+    result.blNumber = existing.blNumber;
+  });
+  restoreIfLocked("blDate", () => {
+    result.blDate = existing.blDate;
+  });
+  restoreIfLocked("origin", () => {
+    result.origin = existing.origin;
+  });
+  restoreIfLocked("cooNumber", () => {
+    result.cooNumber = existing.cooNumber;
+  });
+  restoreIfLocked("cooDate", () => {
+    result.cooDate = existing.cooDate;
+  });
+  restoreIfLocked("commodity", () => {
+    result.commodityId = existing.commodityId;
+    result.commodityName = existing.commodityName;
+  });
+  restoreIfLocked("hsCode", () => {
+    result.hsCode = existing.hsCode;
+  });
+  restoreIfLocked("port", () => {
+    result.portId = existing.portId;
+    result.portName = existing.portName;
+  });
+  restoreIfLocked("bank", () => {
+    result.bankId = existing.bankId;
+    result.bankName = existing.bankName;
+  });
+  restoreIfLocked("transactionType", () => {
+    result.transactionType = existing.transactionType;
+  });
+  restoreIfLocked("importPermit", () => {
+    result.importPermit = existing.importPermit;
+  });
+  restoreIfLocked("notes", () => {
+    result.notes = existing.notes;
+  });
+  restoreIfLocked("serviceFeeRate", () => {
+    result.serviceFeeRate = existing.serviceFeeRate;
+  });
+  restoreIfLocked("serviceFeeAmount", () => {
+    result.serviceFeeAmount = existing.serviceFeeAmount;
+  });
+  restoreIfLocked("financeNotes", () => {
+    result.financeNotes = existing.financeNotes;
+  });
+
+  return result;
 }
 
 async function archiveRequest(id) {
@@ -4223,21 +4382,31 @@ function getInputFieldDefinitions() {
 }
 
 function roleAllowsSection(sectionKey) {
-  return true;
+  const roleDefinition = getRoleDefinitionByName(state.currentUser?.role);
+  const visibleSections = roleDefinition?.visibleSections || [];
+  return !visibleSections.length || visibleSections.includes(sectionKey);
 }
 
 function roleAllowsEditSection(sectionKey) {
   const permissions = getEffectivePermissions();
-  return !permissions.readOnly;
+  if (permissions.readOnly) return false;
+  const roleDefinition = getRoleDefinitionByName(state.currentUser?.role);
+  const editableSections = roleDefinition?.editableSections || [];
+  return !editableSections.length || editableSections.includes(sectionKey);
 }
 
 function roleAllowsField(fieldKey) {
-  return true;
+  const roleDefinition = getRoleDefinitionByName(state.currentUser?.role);
+  const visibleFields = roleDefinition?.visibleFields || [];
+  return !visibleFields.length || visibleFields.includes(fieldKey);
 }
 
 function roleAllowsEditField(fieldKey) {
   const permissions = getEffectivePermissions();
-  return !permissions.readOnly;
+  if (permissions.readOnly) return false;
+  const roleDefinition = getRoleDefinitionByName(state.currentUser?.role);
+  const editableFields = roleDefinition?.editableFields || [];
+  return !editableFields.length || editableFields.includes(fieldKey);
 }
 
 function getCustomInputFieldDefinitions() {
@@ -4254,15 +4423,25 @@ function applyInputFieldDefinitions() {
     if (!wrapper) return;
     const label = wrapper.querySelector("span");
     const input = getManagedFieldElement(field.bindKey);
-    wrapper.hidden = !field.active;
+    const stageName = getCurrentEditingStage();
+    const canSee = field.active && roleAllowsSection(field.section) && roleAllowsField(field.bindKey);
+    const canEdit = stageAllowsEditField(field.bindKey, stageName);
+    wrapper.hidden = !canSee;
     if (label) label.textContent = field.label;
-    if (input && !input.readOnly) {
+    if (input) {
       if (field.placeholder !== undefined && "placeholder" in input) input.placeholder = field.placeholder || "";
       if (field.required) input.setAttribute("required", "required");
       else input.removeAttribute("required");
-      const canEdit = !getEffectivePermissions().readOnly;
       input.disabled = !canEdit;
-      if ("readOnly" in input && input.tagName !== "SELECT") input.readOnly = !canEdit;
+      if ("readOnly" in input && input.tagName !== "SELECT") {
+        input.readOnly = !canEdit || alwaysReadonlyFieldKeys.has(field.bindKey);
+      }
+      if (input.tagName === "SELECT" && !canEdit) {
+        input.setAttribute("disabled", "disabled");
+      }
+    }
+    wrapper.querySelectorAll(".icon-button").forEach((button) => {
+      button.disabled = !canEdit;
     }
   });
   renderCustomRequestFields(state.requests.find((item) => item.id === currentEditRequestId) || null);
@@ -4284,11 +4463,14 @@ function renderCustomRequestFields(request = null) {
     container.innerHTML = "";
     return;
   }
-  panel.hidden = false;
+  panel.hidden = !roleAllowsSection("custom");
+  if (panel.hidden) return;
   container.innerHTML = "";
   fields.forEach((field) => {
     const value = request?.customFields?.[field.key] ?? "";
-    const canEdit = !getEffectivePermissions().readOnly;
+    const canSee = roleAllowsField(field.key);
+    if (!canSee) return;
+    const canEdit = roleAllowsEditSection("custom") && roleAllowsEditField(field.key) && stageAllowsEditField(field.key, getCurrentEditingStage(), request);
     const label = document.createElement("label");
     label.className = field.inputType === "textarea" ? "full-span" : "";
     label.innerHTML = `
@@ -4442,6 +4624,7 @@ function updateRequestFormContext(request = null) {
   const financeSection = document.getElementById("financeReviewSection");
   if (financeSection) financeSection.hidden = false;
   renderDynamicDocumentUploads(stageName, request);
+  updateRequestFormPermissions(request);
 }
 
 function getStageDocumentDefinitions(stageName) {
@@ -4476,7 +4659,7 @@ function renderDynamicDocumentUploads(stageName, request = null) {
     const wrapper = document.createElement("div");
     wrapper.className = "dynamic-upload-card";
     const currentName = resolveDocumentDefinitionName(definition, request);
-    const canEditDocuments = !getEffectivePermissions().readOnly;
+    const canEditDocuments = stageAllowsEditDocuments(stageName, request);
     wrapper.innerHTML = `
       <label class="${definition.allowCustomTitle ? "" : "full-span"}">
         <span>${escapeHtml(definition.label)} ${definition.requirement === "required" ? "(مطلوب)" : "(اختياري)"}</span>
@@ -4541,6 +4724,42 @@ function renderDocumentSections(request) {
 
   attachDynamicEvents();
   normalizeDocumentDigits();
+}
+
+function updateRequestFormPermissions(request = state.requests.find((item) => item.id === currentEditRequestId) || null) {
+  const stageName = request?.stage || getCurrentEditingStage();
+  const canClear = canClearCurrentRequestForm(stageName);
+  const canReturn = Boolean(request && canCurrentUserActOnRequest(request) && getPreviousStageName(stageName));
+  const resetFormButton = document.getElementById("resetFormButton");
+  const returnRequestButton = document.getElementById("returnRequestButton");
+  const financeSection = document.querySelector(".financial-review-panel");
+  const documentsSection = document.querySelector(".documents-panel");
+
+  applyInputFieldDefinitions();
+
+  if (financeSection) {
+    financeSection.hidden = !roleAllowsSection("finance");
+  }
+  if (documentsSection) {
+    documentsSection.hidden = !roleAllowsSection("documents");
+  }
+  if (resetFormButton) {
+    resetFormButton.disabled = !canClear;
+    resetFormButton.hidden = !canClear;
+    resetFormButton.title = canClear ? "" : "تفريغ الحقول متاح فقط في مرحلة إدخال البيانات";
+  }
+  if (returnRequestButton) {
+    returnRequestButton.hidden = !canReturn;
+    returnRequestButton.disabled = !canReturn;
+    if (canReturn) {
+      returnRequestButton.textContent = `إرجاع إلى ${formatStageLabel(getPreviousStageName(stageName))}`;
+    }
+  }
+}
+
+async function returnCurrentEditingRequest() {
+  if (!currentEditRequestId) return;
+  await returnRequestToPreviousStage(currentEditRequestId, { closeDialogAfter: false, fromForm: true });
 }
 
 function renderClaimsPanels(completedTargetId = "completedClaimsList", deferredTargetId = "deferredClaimsList") {
