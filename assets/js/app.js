@@ -10,6 +10,7 @@ let currentReferenceType = null;
 let currentReferenceEditId = null;
 let currentCustomTableId = null;
 let currentCustomTableRowId = null;
+let staticEventsBound = false;
 const collapsedDatabasePanels = {};
 const uploadProgressState = {};
 const uploadProgressTimers = {};
@@ -1157,6 +1158,16 @@ function hasUnsavedRequestChanges() {
 }
 
 async function boot() {
+  state = normalizeLoadedState(defaultState());
+  ensureCriticalStateIntegrity();
+  restoreUiState();
+  try {
+    bindStaticEvents();
+  } catch (error) {
+    console.error("Failed to bind static events", error);
+  }
+  showLoginScreen();
+
   try {
     state = normalizeLoadedState(await dataService.loadState());
     const repaired = ensureCriticalStateIntegrity();
@@ -1168,16 +1179,10 @@ async function boot() {
   } catch (error) {
     console.error(error);
     alert(`تعذر تحميل البيانات من ${appConfig.dataMode}. سيتم الرجوع للوضع المحلي.`);
-    state = defaultState();
+    state = normalizeLoadedState(defaultState());
     ensureCriticalStateIntegrity();
   }
 
-  restoreUiState();
-  try {
-    bindStaticEvents();
-  } catch (error) {
-    console.error("Failed to bind static events", error);
-  }
   const isAuthenticated = restoreAuthSession();
   if (!isAuthenticated) {
     showLoginScreen();
@@ -1202,34 +1207,38 @@ async function boot() {
 }
 
 function bindStaticEvents() {
-  document.getElementById("toggleSidebarButton").addEventListener("click", toggleSidebar);
-  document.getElementById("topbarPrimaryButton").addEventListener("click", handleTopbarPrimaryAction);
-  document.getElementById("loginForm").addEventListener("submit", handleLogin);
-  document.getElementById("openPasswordRecoveryButton").addEventListener("click", openPasswordRecoveryDialog);
-  document.getElementById("closePasswordRecoveryDialogButton").addEventListener("click", closePasswordRecoveryDialog);
-  document.getElementById("cancelPasswordRecoveryDialogButton").addEventListener("click", closePasswordRecoveryDialog);
-  document.getElementById("passwordRecoveryForm").addEventListener("submit", handlePasswordRecovery);
-  document.getElementById("openAccountDialogButton").addEventListener("click", openAccountProfileDialog);
-  document.getElementById("logoutButton").addEventListener("click", logoutCurrentUser);
-  document.getElementById("closeAccountProfileDialogButton").addEventListener("click", closeAccountProfileDialog);
-  document.getElementById("cancelAccountProfileDialogButton").addEventListener("click", closeAccountProfileDialog);
-  document.getElementById("accountProfileForm").addEventListener("submit", saveAccountProfile);
-  document.getElementById("loginEmailInput").addEventListener("input", () => {
+  if (staticEventsBound) return;
+  staticEventsBound = true;
+  const bind = (id, eventName, handler) => document.getElementById(id)?.addEventListener(eventName, handler);
+
+  bind("toggleSidebarButton", "click", toggleSidebar);
+  bind("topbarPrimaryButton", "click", handleTopbarPrimaryAction);
+  bind("loginForm", "submit", handleLogin);
+  bind("openPasswordRecoveryButton", "click", openPasswordRecoveryDialog);
+  bind("closePasswordRecoveryDialogButton", "click", closePasswordRecoveryDialog);
+  bind("cancelPasswordRecoveryDialogButton", "click", closePasswordRecoveryDialog);
+  bind("passwordRecoveryForm", "submit", handlePasswordRecovery);
+  bind("openAccountDialogButton", "click", openAccountProfileDialog);
+  bind("logoutButton", "click", logoutCurrentUser);
+  bind("closeAccountProfileDialogButton", "click", closeAccountProfileDialog);
+  bind("cancelAccountProfileDialogButton", "click", closeAccountProfileDialog);
+  bind("accountProfileForm", "submit", saveAccountProfile);
+  bind("loginEmailInput", "input", () => {
     document.getElementById("loginErrorMessage").hidden = true;
   });
-  document.getElementById("loginPasswordInput").addEventListener("input", () => {
+  bind("loginPasswordInput", "input", () => {
     document.getElementById("loginErrorMessage").hidden = true;
   });
-  document.getElementById("passwordRecoveryEmailInput").addEventListener("input", () => {
+  bind("passwordRecoveryEmailInput", "input", () => {
     document.getElementById("passwordRecoveryErrorMessage").hidden = true;
   });
-  document.getElementById("passwordRecoveryNameInput").addEventListener("input", () => {
+  bind("passwordRecoveryNameInput", "input", () => {
     document.getElementById("passwordRecoveryErrorMessage").hidden = true;
   });
-  document.getElementById("passwordRecoveryNewPasswordInput").addEventListener("input", () => {
+  bind("passwordRecoveryNewPasswordInput", "input", () => {
     document.getElementById("passwordRecoveryErrorMessage").hidden = true;
   });
-  document.getElementById("passwordRecoveryConfirmPasswordInput").addEventListener("input", () => {
+  bind("passwordRecoveryConfirmPasswordInput", "input", () => {
     document.getElementById("passwordRecoveryErrorMessage").hidden = true;
   });
   document.querySelectorAll(".nav-link").forEach((button) => {
