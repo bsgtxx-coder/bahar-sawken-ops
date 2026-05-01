@@ -1395,6 +1395,10 @@ function renderTopbar() {
   document.getElementById("currentUserName").textContent = state.currentUser.name;
   document.getElementById("currentUserRole").textContent = formatRoleLabel(state.currentUser.role);
   document.getElementById("currentUserStage").textContent = formatStageLabel(state.currentUser.stage);
+  const currentUserNameMirror = document.getElementById("currentUserNameMirror");
+  const currentUserRoleMirror = document.getElementById("currentUserRoleMirror");
+  if (currentUserNameMirror) currentUserNameMirror.textContent = state.currentUser.name;
+  if (currentUserRoleMirror) currentUserRoleMirror.textContent = formatRoleLabel(state.currentUser.role);
   document.getElementById("pageTitle").textContent =
     currentView === "new-request" ? (currentEditRequestId ? "تعديل الطلب" : "طلب جديد") : pageTitles[currentView];
   const primaryButton = document.getElementById("topbarPrimaryButton");

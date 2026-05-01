@@ -95,16 +95,24 @@
       </button>
 
       <nav class="nav-links">
-        <button class="nav-link active" data-view="dashboard">لوحة التحكم</button>
-        <button class="nav-link" data-view="development">التطوير والإشعارات</button>
-        <button class="nav-link" data-view="requests">الطلبات</button>
-        <button class="nav-link" data-view="new-request">طلب جديد</button>
-        <button class="nav-link" data-view="references">قاعدة البيانات</button>
-        <button class="nav-link" data-view="accounts">الحسابات</button>
-        <button class="nav-link" data-view="reports">تقارير</button>
-        <button class="nav-link" data-view="archive">الأرشيف</button>
-        <button class="nav-link" data-view="workflow">سير المراحل</button>
+        <button class="nav-link active" data-view="dashboard"><span class="nav-link-icon">◌</span><span>لوحة التحكم</span></button>
+        <button class="nav-link" data-view="development"><span class="nav-link-icon">✦</span><span>التطوير والإشعارات</span></button>
+        <button class="nav-link" data-view="requests"><span class="nav-link-icon">▦</span><span>الطلبات</span></button>
+        <button class="nav-link" data-view="new-request"><span class="nav-link-icon">＋</span><span>طلب جديد</span></button>
+        <button class="nav-link" data-view="references"><span class="nav-link-icon">⌘</span><span>قاعدة البيانات</span></button>
+        <button class="nav-link" data-view="accounts"><span class="nav-link-icon">◍</span><span>الحسابات</span></button>
+        <button class="nav-link" data-view="reports"><span class="nav-link-icon">◔</span><span>تقارير</span></button>
+        <button class="nav-link" data-view="archive"><span class="nav-link-icon">◫</span><span>الأرشيف</span></button>
+        <button class="nav-link" data-view="workflow"><span class="nav-link-icon">⇄</span><span>سير المراحل</span></button>
       </nav>
+
+      <div class="sidebar-footer-glow">
+        <div class="sidebar-footer-chip">
+          <span class="footer-dot"></span>
+          <strong>نظام متصل</strong>
+          <small>Shared Cloud State</small>
+        </div>
+      </div>
     </aside>
 
     <main class="main-content">
@@ -137,13 +145,22 @@
 
       <section class="view active" id="dashboard-view">
         <div class="hero-panel">
-          <div>
+          <div class="hero-copy-block">
             <p class="eyebrow">نظرة سريعة</p>
-            <h3>لوحة تشغيل أنيقة وسريعة لفريق العمليات</h3>
+            <h3>مركز تشغيل زجاجي سريع لفريق الطلبات والمتابعة</h3>
             <p class="hero-copy">
-              صممت هذه النسخة لتكون مناسبة للاستضافة الثابتة، مع واجهة عربية مريحة،
-              منطق محلي سريع، وبنية جاهزة للربط لاحقاً مع API وقاعدة بيانات.
+              واجهة خفيفة وواضحة لعرض أهم المؤشرات، تنقل الطلبات، الإشعارات، والمتابعة اليومية من نفس المساحة.
             </p>
+            <div class="hero-inline-metrics">
+              <div class="hero-inline-pill">
+                <span>المستخدم الحالي</span>
+                <strong id="currentUserNameMirror">Bahar Sawken Admin</strong>
+              </div>
+              <div class="hero-inline-pill">
+                <span>الدور</span>
+                <strong id="currentUserRoleMirror">Admin</strong>
+              </div>
+            </div>
           </div>
           <div class="hero-badge-grid">
             <article class="mini-card accent-a">
@@ -162,21 +179,25 @@
         </div>
 
         <div class="stats-grid">
-          <article class="stat-card">
+          <article class="stat-card stat-card-featured">
             <span>إجمالي الطلبات</span>
             <strong id="totalRequestsStat">0</strong>
+            <i class="stat-glow-line"></i>
           </article>
           <article class="stat-card">
             <span>طلبات Data Entry</span>
             <strong id="dataEntryStat">0</strong>
+            <i class="stat-glow-line"></i>
           </article>
           <article class="stat-card">
             <span>تحت المراجعة</span>
             <strong id="reviewStat">0</strong>
+            <i class="stat-glow-line"></i>
           </article>
           <article class="stat-card">
             <span>طلبات مكتملة</span>
             <strong id="completedStat">0</strong>
+            <i class="stat-glow-line"></i>
           </article>
         </div>
 
@@ -324,6 +345,17 @@
       </section>
 
       <section class="view" id="development-view">
+        <section class="view-stage-hero">
+          <div>
+            <p class="eyebrow">Operations Feed</p>
+            <h3>مساحة موحدة للتنبيهات ورسائل التشغيل وملاحظات التطوير</h3>
+            <p>تجميع الإشعارات اليومية ومتابعة التغييرات التطويرية من نفس المساحة بأسلوب واضح وخفيف.</p>
+          </div>
+          <div class="view-stage-hero-grid">
+            <article class="view-stage-pill"><span>المتابعة</span><strong>Live</strong></article>
+            <article class="view-stage-pill"><span>الحالة</span><strong>Shared</strong></article>
+          </div>
+        </section>
         <div class="dashboard-grid claims-grid">
           <section class="panel">
             <div class="panel-header">
@@ -398,6 +430,17 @@
       </section>
 
       <section class="view" id="requests-view">
+        <section class="view-stage-hero">
+          <div>
+            <p class="eyebrow">Request Board</p>
+            <h3>لوحة طلبات زجاجية سريعة للعرض، الفرز، والتنفيذ</h3>
+            <p>عرض واضح للطلبات مع فلاتر خفيفة، حالات ملونة، وتنقل سريع بين المعالجة والتفاصيل.</p>
+          </div>
+          <div class="view-stage-hero-grid">
+            <article class="view-stage-pill"><span>النطاق</span><strong>حسب الصلاحية</strong></article>
+            <article class="view-stage-pill"><span>المعالجة</span><strong>فورية</strong></article>
+          </div>
+        </section>
         <div class="panel filter-panel">
           <div class="filter-grid">
             <label>
@@ -449,6 +492,17 @@
       </section>
 
       <section class="view" id="new-request-view">
+        <section class="view-stage-hero">
+          <div>
+            <p class="eyebrow">Request Composer</p>
+            <h3>نموذج طلب مرتب على شكل وحدات تشغيل واضحة</h3>
+            <p>إدخال البيانات، المراجعة المالية، والمستندات داخل كتل مستقلة بنفس لغة التصميم الجديدة.</p>
+          </div>
+          <div class="view-stage-hero-grid">
+            <article class="view-stage-pill"><span>الحفظ</span><strong>Draft / Submit</strong></article>
+            <article class="view-stage-pill"><span>المستندات</span><strong>Dynamic</strong></article>
+          </div>
+        </section>
         <section class="panel">
           <div class="panel-header">
             <div>
@@ -469,14 +523,22 @@
               </article>
             </div>
 
-            <div class="form-grid" id="basicRequestFieldsGrid">
-              <label data-field-key="sellerCompany">
-                <span>الشركة البائعة</span>
-                <div class="field-with-action">
-                  <select id="sellerCompanySelect" required></select>
-                  <button class="icon-button" type="button" data-reference-modal="companies">+</button>
+            <section class="panel request-section-card">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Basic Data</p>
+                  <h3>البيانات الأساسية للطلب</h3>
                 </div>
-              </label>
+              </div>
+
+              <div class="form-grid" id="basicRequestFieldsGrid">
+                <label data-field-key="sellerCompany">
+                  <span>الشركة البائعة</span>
+                  <div class="field-with-action">
+                    <select id="sellerCompanySelect" required></select>
+                    <button class="icon-button" type="button" data-reference-modal="companies">+</button>
+                  </div>
+                </label>
 
               <label data-field-key="importerCompany">
                 <span>الشركة المستوردة</span>
@@ -574,11 +636,12 @@
                 <input id="importPermitInput" type="text" placeholder="IMP-8891">
               </label>
 
-              <label class="full-span" data-field-key="notes">
-                <span>ملاحظات</span>
-                <textarea id="notesInput" rows="4" placeholder="ملاحظات إضافية مرتبطة بالطلب"></textarea>
-              </label>
-            </div>
+                <label class="full-span" data-field-key="notes">
+                  <span>ملاحظات</span>
+                  <textarea id="notesInput" rows="4" placeholder="ملاحظات إضافية مرتبطة بالطلب"></textarea>
+                </label>
+              </div>
+            </section>
 
             <section class="panel custom-fields-panel" id="customFieldsPanel" hidden>
               <div class="panel-header">
@@ -590,7 +653,7 @@
               <div id="dynamicRequestFields" class="form-grid"></div>
             </section>
 
-            <section class="financial-review-panel">
+            <section class="panel financial-review-panel request-section-card">
               <div class="panel-header">
                 <div>
                   <p class="eyebrow">Finance Review</p>
@@ -616,7 +679,7 @@
               </div>
             </section>
 
-            <section class="documents-panel">
+            <section class="panel documents-panel request-section-card">
               <div class="panel-header">
                 <div>
                   <p class="eyebrow">Documents</p>
@@ -639,7 +702,7 @@
               <div id="dynamicDocumentUploads" class="upload-grid"></div>
             </section>
 
-            <div class="form-actions">
+            <div class="form-actions action-dock">
               <button class="ghost-button" id="resetFormButton" type="button">تفريغ الحقول</button>
               <div class="submit-group">
                 <button class="ghost-button" id="returnRequestButton" type="button" hidden>إرجاع للمرحلة السابقة</button>
@@ -653,6 +716,17 @@
 
       <section class="view" id="references-view">
         <div class="reference-grid">
+          <section class="view-stage-hero full-span">
+            <div>
+              <p class="eyebrow">System Builder</p>
+              <h3>قاعدة بيانات منظمة بصرياً لبناء حقول النظام ومراحله ومراجع التشغيل</h3>
+              <p>إدارة عناصر النظام من خلال مجموعات واضحة، بطاقات زجاجية، وترتيب مرن يناسب الإدارة.</p>
+            </div>
+            <div class="view-stage-hero-grid">
+              <article class="view-stage-pill"><span>التحكم</span><strong>Admin</strong></article>
+              <article class="view-stage-pill"><span>التوسعة</span><strong>Dynamic</strong></article>
+            </div>
+          </section>
           <section class="panel full-span">
             <div class="panel-header">
               <div>
@@ -913,6 +987,17 @@
       </section>
 
       <section class="view" id="reports-view">
+        <section class="view-stage-hero">
+          <div>
+            <p class="eyebrow">Insight Surface</p>
+            <h3>تقارير نظيفة بزوايا ناعمة ومؤشرات تشغيل وذمم واضحة</h3>
+            <p>لوحات مختصرة تسهّل مراجعة المطالبات، المراحل، والوكلاء والشركات عبر شكل بصري موحد.</p>
+          </div>
+          <div class="view-stage-hero-grid">
+            <article class="view-stage-pill"><span>الذمم</span><strong>Live</strong></article>
+            <article class="view-stage-pill"><span>القراءة</span><strong>Summary</strong></article>
+          </div>
+        </section>
         <div class="panel reports-toolbar print-hidden">
           <div class="panel-header">
             <div>
@@ -1020,6 +1105,17 @@
       </section>
 
       <section class="view" id="accounts-view">
+        <section class="view-stage-hero">
+          <div>
+            <p class="eyebrow">Treasury & Flows</p>
+            <h3>الحسابات بشكل أخف وأوضح مع مسارات حركة نقدية قابلة للمتابعة</h3>
+            <p>خزائن، مطالبات، سداد، ومنصرفات داخل بطاقات زجاجية متوازنة وسهلة القراءة.</p>
+          </div>
+          <div class="view-stage-hero-grid">
+            <article class="view-stage-pill"><span>الخزينة</span><strong>SDG / AED</strong></article>
+            <article class="view-stage-pill"><span>الحركة</span><strong>Tracked</strong></article>
+          </div>
+        </section>
         <div class="stats-grid">
           <article class="stat-card">
             <span>خزينة الجنيه</span>
@@ -1099,6 +1195,17 @@
       </section>
 
       <section class="view" id="archive-view">
+        <section class="view-stage-hero">
+          <div>
+            <p class="eyebrow">Archive Center</p>
+            <h3>أرشيف واضح للسجلات المؤرشفة مع سبب الحفظ وإمكانية الاسترجاع</h3>
+            <p>مساحة هادئة ومباشرة لمراجعة العناصر المؤرشفة وتتبع أسباب الأرشفة تاريخياً.</p>
+          </div>
+          <div class="view-stage-hero-grid">
+            <article class="view-stage-pill"><span>الحفظ</span><strong>Secure</strong></article>
+            <article class="view-stage-pill"><span>الاسترجاع</span><strong>Controlled</strong></article>
+          </div>
+        </section>
         <section class="panel">
           <div class="panel-header">
             <div>
@@ -1111,6 +1218,17 @@
       </section>
 
       <section class="view" id="workflow-view">
+        <section class="view-stage-hero">
+          <div>
+            <p class="eyebrow">Workflow Logic</p>
+            <h3>سير مراحل واضح بصرياً مع قواعد تشغيل مبسطة في نفس المشهد</h3>
+            <p>عرض زجاجي للمراحل وتسلسلها لتسهيل فهم دورة الطلب من الإدخال وحتى الإكمال.</p>
+          </div>
+          <div class="view-stage-hero-grid">
+            <article class="view-stage-pill"><span>الترتيب</span><strong>Sequential</strong></article>
+            <article class="view-stage-pill"><span>التحكم</span><strong>Configurable</strong></article>
+          </div>
+        </section>
         <div class="workflow-grid">
           <section class="panel">
             <div class="panel-header">
