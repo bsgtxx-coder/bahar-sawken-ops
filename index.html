@@ -8,6 +8,12 @@
   <link rel="stylesheet" href="./assets/css/styles.css">
 </head>
 <body>
+  <div class="ambient-shell" aria-hidden="true">
+    <span class="ambient-orb orb-a"></span>
+    <span class="ambient-orb orb-b"></span>
+    <span class="ambient-orb orb-c"></span>
+    <span class="ambient-grid"></span>
+  </div>
   <section class="login-screen" id="loginScreen">
     <form class="login-card" id="loginForm">
       <p class="eyebrow">Operations Access</p>
@@ -109,8 +115,23 @@
           <h2 id="pageTitle">القائمة</h2>
           </div>
         </div>
-        <div class="topbar-actions">
-          <button class="primary-button" id="topbarPrimaryButton" type="button">إنشاء طلب</button>
+        <div class="topbar-utility">
+          <label class="topbar-search">
+            <span>⌕</span>
+            <input type="search" placeholder="بحث">
+          </label>
+          <button class="topbar-icon" type="button" aria-label="Notifications">◌</button>
+          <button class="topbar-icon" type="button" aria-label="Quick actions">✦</button>
+          <div class="topbar-profile-pill">
+            <span class="topbar-avatar">BS</span>
+            <div>
+              <strong>Bahar Sawken</strong>
+              <small>Operations</small>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button class="primary-button" id="topbarPrimaryButton" type="button">إنشاء طلب</button>
+          </div>
         </div>
       </header>
 
