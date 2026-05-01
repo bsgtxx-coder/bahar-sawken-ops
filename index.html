@@ -102,6 +102,7 @@
         <button class="nav-link" data-view="reports"><span class="nav-link-icon">◔</span><span>تقارير</span></button>
         <button class="nav-link" data-view="archive"><span class="nav-link-icon">◫</span><span>الأرشيف</span></button>
         <button class="nav-link" data-view="workflow"><span class="nav-link-icon">⇄</span><span>سير المراحل</span></button>
+        <button class="nav-link" data-view="settings"><span class="nav-link-icon">⚙</span><span>الإعدادات</span></button>
       </nav>
 
       <div class="sidebar-footer-glow">
@@ -122,10 +123,13 @@
           </div>
         </div>
         <div class="topbar-utility">
-          <label class="topbar-search">
-            <span>⌕</span>
-            <input type="search" placeholder="بحث">
-          </label>
+          <div class="topbar-search-shell">
+            <label class="topbar-search">
+              <span>⌕</span>
+              <input id="globalSearchInput" type="search" placeholder="بحث شامل في النظام">
+            </label>
+            <div id="globalSearchResults" class="topbar-search-results" hidden></div>
+          </div>
           <button class="topbar-icon" type="button" aria-label="Notifications">◌</button>
           <button class="topbar-icon" type="button" aria-label="Quick actions">✦</button>
           <button class="ghost-button topbar-mini-action" id="openAccountDialogButton" type="button">حسابي</button>
@@ -1255,6 +1259,89 @@
             </ul>
           </section>
         </div>
+      </section>
+
+      <section class="view" id="settings-view">
+        <section class="view-stage-hero">
+          <div>
+            <p class="eyebrow">Style Controls</p>
+            <h3>إعدادات مرنة للتحكم في الخط والحجم والراحة البصرية</h3>
+            <p>مساحة مستقلة للإدارة تسمح بضبط شكل الواجهة ومرونتها بما يناسب الاستخدام اليومي على مختلف الأجهزة.</p>
+          </div>
+          <div class="view-stage-hero-grid">
+            <article class="view-stage-pill"><span>النمط</span><strong>Glass UI</strong></article>
+            <article class="view-stage-pill"><span>التحكم</span><strong>Live</strong></article>
+          </div>
+        </section>
+
+        <div class="dashboard-grid claims-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Typography</p>
+                <h3>الخط والحجم العام</h3>
+              </div>
+            </div>
+            <div class="form-grid compact-grid settings-grid">
+              <label>
+                <span>حجم الخط العام</span>
+                <input id="fontScaleRange" type="range" min="0.9" max="1.2" step="0.02">
+                <small id="fontScaleValue">100%</small>
+              </label>
+              <label>
+                <span>استدارة الحواف</span>
+                <input id="radiusScaleRange" type="range" min="0.85" max="1.2" step="0.05">
+                <small id="radiusScaleValue">100%</small>
+              </label>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Layout Density</p>
+                <h3>الراحة البصرية وتباعد الحاويات</h3>
+              </div>
+            </div>
+            <div class="form-grid compact-grid settings-grid">
+              <label>
+                <span>كثافة الواجهة</span>
+                <select id="layoutDensitySelect">
+                  <option value="comfortable">مريح</option>
+                  <option value="balanced">متوازن</option>
+                  <option value="compact">مضغوط</option>
+                </select>
+              </label>
+              <label>
+                <span>قوة التمويه الزجاجي</span>
+                <input id="blurStrengthRange" type="range" min="12" max="34" step="2">
+                <small id="blurStrengthValue">24px</small>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Style Options</p>
+              <h3>خيارات إضافية للمظهر</h3>
+            </div>
+          </div>
+          <div class="form-grid compact-grid settings-grid">
+            <label class="toggle-label">
+              <span>تفعيل الوضع المضغوط</span>
+              <input id="compactModeToggle" type="checkbox">
+            </label>
+            <label class="toggle-label">
+              <span>إظهار الشريط العلوي ثابتاً</span>
+              <input id="stickyTopbarToggle" type="checkbox" checked>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="ghost-button" id="resetStyleSettingsButton" type="button">استعادة القيم الافتراضية</button>
+          </div>
+        </section>
       </section>
     </main>
   </div>

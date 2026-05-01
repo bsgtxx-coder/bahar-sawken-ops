@@ -28,6 +28,15 @@ const defaultState = () => ({
       accessWorkflow: true
     }
   },
+  uiSettings: {
+    fontScale: 1,
+    radiusScale: 1,
+    blurStrength: 24,
+    layoutDensity: "balanced",
+    compactMode: false,
+    stickyTopbar: true,
+    globalSearchQuery: ""
+  },
   users: [
     {
       id: 1,

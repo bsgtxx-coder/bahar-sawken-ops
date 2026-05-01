@@ -286,7 +286,8 @@ const pageTitles = {
   accounts: "الحسابات",
   reports: "تقارير",
   archive: "الأرشيف",
-  workflow: "سير المراحل"
+  workflow: "سير المراحل",
+  settings: "الإعدادات"
 };
 
 const pagePermissionMap = {
@@ -298,8 +299,28 @@ const pagePermissionMap = {
   accounts: "accessAccounts",
   reports: "accessReports",
   archive: "accessArchive",
-  workflow: "accessWorkflow"
+  workflow: "accessWorkflow",
+  settings: "accessDashboard"
 };
+
+function getDefaultUiSettings() {
+  return {
+    fontScale: 1,
+    radiusScale: 1,
+    blurStrength: 24,
+    layoutDensity: "balanced",
+    compactMode: false,
+    stickyTopbar: true,
+    globalSearchQuery: ""
+  };
+}
+
+function getUiSettings() {
+  return {
+    ...getDefaultUiSettings(),
+    ...(state.uiSettings || {})
+  };
+}
 
 const arabicIndicDigits = "٠١٢٣٤٥٦٧٨٩";
 const easternArabicDigits = "۰۱۲۳۴۵۶۷۸۹";
@@ -443,6 +464,10 @@ function normalizeLoadedState(loadedState) {
   const fallback = defaultState();
   const nowIso = new Date().toISOString();
   const safeList = (value, fallbackValue) => Array.isArray(value) && value.length ? value : fallbackValue;
+  const normalizedUiSettings = {
+    ...getDefaultUiSettings(),
+    ...(loadedState.uiSettings || {})
+  };
   const withAuditDates = (item, index) => ({
     ...item,
     id: item.id ?? index + 1,
@@ -596,6 +621,7 @@ function normalizeLoadedState(loadedState) {
   return {
     ...fallback,
     ...loadedState,
+    uiSettings: normalizedUiSettings,
     currentUser,
     users: safeList(loadedState.users, fallback.users).map((user, index) => ({
       ...fallback.users[0],
@@ -1272,6 +1298,8 @@ function bindStaticEvents() {
 
   bind("toggleSidebarButton", "click", toggleSidebar);
   bind("topbarPrimaryButton", "click", handleTopbarPrimaryAction);
+  bind("globalSearchInput", "input", handleGlobalSearchInput);
+  bind("globalSearchInput", "keydown", handleGlobalSearchKeydown);
   bind("openAccountDialogButton", "click", openAccountProfileDialog);
   bind("closeAccountProfileDialogButton", "click", closeAccountProfileDialog);
   bind("cancelAccountProfileDialogButton", "click", closeAccountProfileDialog);
@@ -1296,6 +1324,13 @@ function bindStaticEvents() {
   safeBind("requestSearchInput", "input", renderRequestsTable);
   safeBind("stageFilterSelect", "change", renderRequestsTable);
   safeBind("statusFilterSelect", "change", renderRequestsTable);
+  safeBind("fontScaleRange", "input", saveStyleSettingsFromControls);
+  safeBind("radiusScaleRange", "input", saveStyleSettingsFromControls);
+  safeBind("layoutDensitySelect", "change", saveStyleSettingsFromControls);
+  safeBind("blurStrengthRange", "input", saveStyleSettingsFromControls);
+  safeBind("compactModeToggle", "change", saveStyleSettingsFromControls);
+  safeBind("stickyTopbarToggle", "change", saveStyleSettingsFromControls);
+  bind("resetStyleSettingsButton", "click", resetStyleSettings);
 
   safeBind("importerCompanySelect", "change", (event) => {
     syncAgentFromImporterSelection(Number(event.target.value));
@@ -1356,6 +1391,8 @@ function bindStaticEvents() {
   referencesView?.addEventListener("input", handleDatabaseFilterChange);
   referencesView?.addEventListener("change", handleDatabaseFilterChange);
 
+  document.addEventListener("click", handleGlobalSearchOutsideClick);
+
   window.addEventListener("beforeunload", (event) => {
     saveUiState();
     if (!hasUnsavedRequestChanges()) return;
@@ -1365,6 +1402,7 @@ function bindStaticEvents() {
 }
 
 function renderApp() {
+  safeRenderSection("uiSettings", applyUiSettings);
   safeRenderSection("topbar", renderTopbar);
   safeRenderSection("navigation", renderNavigation);
   safeRenderSection("dashboard", renderDashboard);
@@ -1376,10 +1414,12 @@ function renderApp() {
   safeRenderSection("development", renderDevelopmentView);
   safeRenderSection("archiveList", renderArchiveList);
   safeRenderSection("workflow", renderWorkflow);
+  safeRenderSection("settings", renderSettingsView);
   safeRenderSection("templateLibrary", renderTemplateLibrary);
   safeRenderSection("formOptions", populateFormOptions);
   safeRenderSection("dynamicEvents", attachDynamicEvents);
   safeRenderSection("referencesGlobalSearch", applyReferencesGlobalSearch);
+  safeRenderSection("globalSearch", renderGlobalSearchResults);
   safeRenderSection("normalizeDocumentDigits", normalizeDocumentDigits);
 }
 
@@ -1401,6 +1441,10 @@ function renderTopbar() {
   if (currentUserRoleMirror) currentUserRoleMirror.textContent = formatRoleLabel(state.currentUser.role);
   document.getElementById("pageTitle").textContent =
     currentView === "new-request" ? (currentEditRequestId ? "تعديل الطلب" : "طلب جديد") : pageTitles[currentView];
+  const searchInput = document.getElementById("globalSearchInput");
+  if (searchInput && document.activeElement !== searchInput) {
+    searchInput.value = state.uiSettings?.globalSearchQuery || "";
+  }
   const primaryButton = document.getElementById("topbarPrimaryButton");
   if (primaryButton) {
     const visible =
@@ -1543,6 +1587,56 @@ function renderDashboard() {
   renderAdminPanel();
   renderNotificationsSummary();
   renderDevelopmentSummary();
+}
+
+function renderSettingsView() {
+  const settings = getUiSettings();
+  const fontScaleRange = document.getElementById("fontScaleRange");
+  const radiusScaleRange = document.getElementById("radiusScaleRange");
+  const layoutDensitySelect = document.getElementById("layoutDensitySelect");
+  const blurStrengthRange = document.getElementById("blurStrengthRange");
+  const compactModeToggle = document.getElementById("compactModeToggle");
+  const stickyTopbarToggle = document.getElementById("stickyTopbarToggle");
+  const fontScaleValue = document.getElementById("fontScaleValue");
+  const radiusScaleValue = document.getElementById("radiusScaleValue");
+  const blurStrengthValue = document.getElementById("blurStrengthValue");
+
+  if (fontScaleRange) fontScaleRange.value = String(settings.fontScale);
+  if (radiusScaleRange) radiusScaleRange.value = String(settings.radiusScale);
+  if (layoutDensitySelect) layoutDensitySelect.value = settings.layoutDensity;
+  if (blurStrengthRange) blurStrengthRange.value = String(settings.blurStrength);
+  if (compactModeToggle) compactModeToggle.checked = Boolean(settings.compactMode);
+  if (stickyTopbarToggle) stickyTopbarToggle.checked = settings.stickyTopbar !== false;
+  if (fontScaleValue) fontScaleValue.textContent = `${Math.round(Number(settings.fontScale || 1) * 100)}%`;
+  if (radiusScaleValue) radiusScaleValue.textContent = `${Math.round(Number(settings.radiusScale || 1) * 100)}%`;
+  if (blurStrengthValue) blurStrengthValue.textContent = `${Number(settings.blurStrength || 24)}px`;
+}
+
+async function saveStyleSettingsFromControls() {
+  state.uiSettings = {
+    ...getDefaultUiSettings(),
+    fontScale: Number(document.getElementById("fontScaleRange")?.value || 1),
+    radiusScale: Number(document.getElementById("radiusScaleRange")?.value || 1),
+    layoutDensity: document.getElementById("layoutDensitySelect")?.value || "balanced",
+    blurStrength: Number(document.getElementById("blurStrengthRange")?.value || 24),
+    compactMode: Boolean(document.getElementById("compactModeToggle")?.checked),
+    stickyTopbar: Boolean(document.getElementById("stickyTopbarToggle")?.checked),
+    globalSearchQuery: state.uiSettings?.globalSearchQuery || ""
+  };
+  applyUiSettings();
+  renderSettingsView();
+  await dataService.saveState(state);
+}
+
+async function resetStyleSettings() {
+  state.uiSettings = {
+    ...getDefaultUiSettings(),
+    globalSearchQuery: ""
+  };
+  applyUiSettings();
+  renderSettingsView();
+  renderGlobalSearchResults();
+  await dataService.saveState(state);
 }
 
 function getVisibleNotifications(user = state.currentUser) {
@@ -1741,6 +1835,199 @@ function renderRequestFilters() {
   } else {
     stageFilter.disabled = false;
     stageFilter.title = "";
+  }
+}
+
+function applyUiSettings() {
+  const settings = getUiSettings();
+  const root = document.documentElement;
+  root.style.setProperty("--font-scale", String(settings.fontScale));
+  root.style.setProperty("--radius-scale", String(settings.radiusScale));
+  root.style.setProperty("--surface-blur", `${Number(settings.blurStrength || 24)}px`);
+  root.dataset.layoutDensity = settings.layoutDensity || "balanced";
+  root.classList.toggle("compact-ui", Boolean(settings.compactMode));
+  root.classList.toggle("sticky-topbar-disabled", settings.stickyTopbar === false);
+}
+
+function buildGlobalSearchResults(query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return [];
+  const results = [];
+  const pushResult = (item) => {
+    if (results.length >= 12) return;
+    results.push(item);
+  };
+
+  state.requests.filter((request) => !request.archived).forEach((request) => {
+    const haystack = [
+      request.requestNo,
+      request.importerCompanyName,
+      request.sellerCompanyName,
+      request.agent,
+      request.finalInvoice,
+      request.proformaInvoice,
+      request.blNumber
+    ].join(" ").toLowerCase();
+    if (haystack.includes(q)) {
+      pushResult({
+        title: request.requestNo || "طلب",
+        meta: `${request.importerCompanyName || "-"} • ${formatStageLabel(request.stage)}`,
+        type: "request",
+        action: () => openRequestDetails(request.id)
+      });
+    }
+  });
+
+  [
+    ["importerCompanies", "الشركات المستوردة", (item) => openCompanyDetails(item.id, "importer")],
+    ["companies", "الشركات المصدرة", (item) => openCompanyDetails(item.id, "exporter")],
+    ["agents", "الوكلاء", (item) => openAgentDetails(item.name)],
+    ["users", "المستخدمون", (item) => openUserDetails(item.id)],
+    ["roles", "الأدوار", () => navigateToSearchableView("references", q)],
+    ["stages", "المراحل", () => navigateToSearchableView("workflow", q)],
+    ["banks", "البنوك", () => navigateToSearchableView("references", q)],
+    ["ports", "الموانئ", () => navigateToSearchableView("references", q)],
+    ["commodities", "السلع", () => navigateToSearchableView("references", q)],
+    ["documentTypes", "المستندات", () => navigateToSearchableView("references", q)],
+    ["inputFields", "حقول الإدخال", () => navigateToSearchableView("references", q)],
+    ["documentCategories", "أنواع المستندات", () => navigateToSearchableView("references", q)],
+    ["documentNameSources", "مصادر الأسماء", () => navigateToSearchableView("references", q)],
+    ["customTables", "الجداول المضافة", () => navigateToSearchableView("references", q)],
+    ["generationTemplates", "قوالب التوليد", () => navigateToSearchableView("references", q)],
+    ["accountEntries", "الحركات المالية", () => navigateToSearchableView("accounts", q)]
+  ].forEach(([collectionKey, label, actionFactory]) => {
+    (state[collectionKey] || []).forEach((item) => {
+      const text = JSON.stringify(item).toLowerCase();
+      if (text.includes(q)) {
+        pushResult({
+          title: item.name || item.label || item.key || label,
+          meta: label,
+          type: collectionKey,
+          action: () => actionFactory(item)
+        });
+      }
+    });
+  });
+
+  (state.notifications || []).forEach((item) => {
+    const text = `${item.title} ${item.message}`.toLowerCase();
+    if (text.includes(q)) {
+      pushResult({
+        title: item.title || "إشعار",
+        meta: "التطوير والإشعارات",
+        type: "notification",
+        action: () => navigateToSearchableView("development")
+      });
+    }
+  });
+
+  (state.developmentNotes || []).forEach((item) => {
+    const text = `${item.title} ${item.details}`.toLowerCase();
+    if (text.includes(q)) {
+      pushResult({
+        title: item.title || "ملاحظة تطوير",
+        meta: "ملاحظات التطوير",
+        type: "development",
+        action: () => navigateToSearchableView("development")
+      });
+    }
+  });
+
+  (state.requests || []).filter((request) => request.archived).forEach((request) => {
+    const haystack = [
+      request.requestNo,
+      request.importerCompanyName,
+      request.sellerCompanyName,
+      request.agent,
+      request.finalInvoice,
+      request.proformaInvoice
+    ].join(" ").toLowerCase();
+    if (haystack.includes(q)) {
+      pushResult({
+        title: request.requestNo || "طلب مؤرشف",
+        meta: `الأرشيف • ${request.importerCompanyName || "-"}`,
+        type: "archived-request",
+        action: () => navigateToSearchableView("archive", q)
+      });
+    }
+  });
+
+  return results.slice(0, 10);
+}
+
+function renderGlobalSearchResults() {
+  const container = document.getElementById("globalSearchResults");
+  if (!container) return;
+  const query = state.uiSettings?.globalSearchQuery || "";
+  const results = buildGlobalSearchResults(query);
+  if (!query.trim() || !results.length) {
+    container.hidden = true;
+    container.innerHTML = query.trim()
+      ? `<div class="topbar-search-empty">لا توجد نتائج مطابقة</div>`
+      : "";
+    if (!query.trim()) container.innerHTML = "";
+    return;
+  }
+  container.hidden = false;
+  container.innerHTML = results.map((result, index) => `
+    <button class="topbar-search-result-item" type="button" data-global-search-result="${index}">
+      <strong>${escapeHtml(result.title)}</strong>
+      <small>${escapeHtml(result.meta)}</small>
+    </button>
+  `).join("");
+  [...container.querySelectorAll("[data-global-search-result]")].forEach((button) => {
+    button.addEventListener("click", () => {
+      const result = results[Number(button.dataset.globalSearchResult)];
+      container.hidden = true;
+      if (result?.action) result.action();
+    });
+  });
+}
+
+function handleGlobalSearchInput(event) {
+  state.uiSettings = {
+    ...getUiSettings(),
+    globalSearchQuery: event.target.value || ""
+  };
+  renderGlobalSearchResults();
+}
+
+function handleGlobalSearchKeydown(event) {
+  if (event.key !== "Enter") return;
+  const results = buildGlobalSearchResults(event.target.value || "");
+  if (!results.length) return;
+  event.preventDefault();
+  document.getElementById("globalSearchResults")?.setAttribute("hidden", "hidden");
+  results[0].action?.();
+}
+
+function handleGlobalSearchOutsideClick(event) {
+  const shell = event.target.closest(".topbar-search-shell");
+  if (shell) return;
+  const container = document.getElementById("globalSearchResults");
+  if (container) container.hidden = true;
+}
+
+function navigateToSearchableView(view, query = "") {
+  currentView = view;
+  saveUiState();
+  renderNavigation();
+  if (view === "requests") {
+    const input = document.getElementById("requestSearchInput");
+    if (input) {
+      input.value = query;
+      renderRequestsTable();
+    }
+  }
+  if (view === "references") {
+    const input = document.getElementById("referencesGlobalSearchInput");
+    if (input) {
+      input.value = query;
+      applyReferencesGlobalSearch();
+    }
+  }
+  if (view === "archive") {
+    renderArchiveList();
   }
 }
 
