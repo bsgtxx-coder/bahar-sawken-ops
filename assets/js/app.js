@@ -98,6 +98,7 @@ const referenceConfigs = {
       { key: "key", label: "المعرف التقني", type: "text" },
       { key: "name", label: "اسم الجدول", type: "text" },
       { key: "description", label: "وصف الجدول", type: "textarea", placeholder: "الغرض من هذا الجدول" },
+      { key: "sortOrder", label: "الترتيب", type: "number", required: false },
       { key: "columns", label: "الأعمدة", type: "textarea", placeholder: "name, code, amount" },
       { key: "active", label: "مفعّل", type: "boolean" }
     ]
@@ -195,6 +196,7 @@ const referenceConfigs = {
     fields: [
       { key: "key", label: "المعرف", type: "text" },
       { key: "label", label: "اسم المستند", type: "text" },
+      { key: "sortOrder", label: "الترتيب", type: "number", required: false },
       { key: "category", label: "النوع", type: "select", optionsFromDocumentCategories: true },
       { key: "nameSource", label: "مصدر الاسم", type: "select", optionsFromDocumentNameSources: true },
       { key: "requiredStages", label: "مطلوب في المراحل", type: "textarea", placeholder: "DataEntry, InvoiceReview" },
@@ -209,6 +211,7 @@ const referenceConfigs = {
     fields: [
       { key: "key", label: "المعرف", type: "text" },
       { key: "label", label: "اسم النوع", type: "text" },
+      { key: "sortOrder", label: "الترتيب", type: "number", required: false },
       { key: "description", label: "الوصف", type: "textarea", placeholder: "وصف مختصر لهذا النوع", required: false },
       { key: "active", label: "مفعّل", type: "boolean" }
     ]
@@ -219,6 +222,7 @@ const referenceConfigs = {
     fields: [
       { key: "key", label: "المعرف", type: "text" },
       { key: "label", label: "اسم المصدر", type: "text" },
+      { key: "sortOrder", label: "الترتيب", type: "number", required: false },
       { key: "bindKey", label: "الحقل المرتبط", type: "select", optionsFromInputFieldsBindKeys: true, allowBlank: true, required: false },
       { key: "description", label: "الوصف", type: "textarea", placeholder: "كيف يتم تسمية المستند من هذا المصدر", required: false },
       { key: "active", label: "مفعّل", type: "boolean" }
@@ -405,18 +409,24 @@ function getEffectiveRoleConfig(user = state.currentUser) {
 function getDocumentCategoryOptions() {
   return (state.documentCategories || [])
     .filter((item) => item.active !== false)
+    .slice()
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
     .map((item) => ({ value: item.key, label: item.label || item.key }));
 }
 
 function getDocumentNameSourceOptions() {
   return (state.documentNameSources || [])
     .filter((item) => item.active !== false)
+    .slice()
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
     .map((item) => ({ value: item.key, label: item.label || item.key }));
 }
 
 function getInputFieldBindKeyOptions() {
   return (state.inputFields || [])
     .filter((item) => item.active !== false)
+    .slice()
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
     .map((item) => ({ value: item.bindKey || item.key, label: item.label || item.bindKey || item.key }))
     .filter((item, index, array) => array.findIndex((candidate) => candidate.value === item.value) === index);
 }
@@ -503,17 +513,19 @@ function normalizeLoadedState(loadedState) {
   const documentTypes = safeList(loadedState.documentTypes, fallback.documentTypes || []).map((item, index) => ({
     ...(fallback.documentTypes?.[Math.min(index, (fallback.documentTypes?.length || 1) - 1)] || {}),
     ...withAuditDates(item, index),
-    requiredStages: Array.isArray(item.requiredStages) ? item.requiredStages : splitCommaValues(item.requiredStages),
-    optionalStages: Array.isArray(item.optionalStages) ? item.optionalStages : splitCommaValues(item.optionalStages),
+    requiredStages: normalizeStageNameList(item.requiredStages),
+    optionalStages: normalizeStageNameList(item.optionalStages),
     allowCustomTitle: item.allowCustomTitle ?? false,
-    active: item.active ?? true
+    active: item.active ?? true,
+    sortOrder: Number(item.sortOrder ?? index + 1)
   }));
   const documentCategories = safeList(loadedState.documentCategories, fallback.documentCategories || []).map((item, index) => ({
     ...withAuditDates(item, index),
     key: item.key || "",
     label: item.label || item.key || "",
     description: item.description || "",
-    active: item.active ?? true
+    active: item.active ?? true,
+    sortOrder: Number(item.sortOrder ?? index + 1)
   }));
   const documentNameSources = safeList(loadedState.documentNameSources, fallback.documentNameSources || []).map((item, index) => ({
     ...withAuditDates(item, index),
@@ -521,7 +533,8 @@ function normalizeLoadedState(loadedState) {
     label: item.label || item.key || "",
     bindKey: item.bindKey || "",
     description: item.description || "",
-    active: item.active ?? true
+    active: item.active ?? true,
+    sortOrder: Number(item.sortOrder ?? index + 1)
   }));
   const inputFields = safeList(loadedState.inputFields, fallback.inputFields || []).map((item, index) => ({
     ...withAuditDates(item, index),
@@ -539,6 +552,7 @@ function normalizeLoadedState(loadedState) {
     key: item.key || `table_${index + 1}`,
     name: item.name || "جدول جديد",
     description: item.description || "",
+    sortOrder: Number(item.sortOrder ?? index + 1),
     columns: Array.isArray(item.columns) ? item.columns : splitCommaValues(item.columns),
     rows: Array.isArray(item.rows) ? item.rows.map((row, rowIndex) => ({ id: row.id ?? rowIndex + 1, ...row })) : [],
     active: item.active ?? true
@@ -1765,6 +1779,34 @@ function canCurrentUserActOnRequest(request) {
 }
 
 const alwaysReadonlyFieldKeys = new Set(["agent", "serviceFeeAmount"]);
+const managedRequestFieldKeys = new Set([
+  "sellerCompany",
+  "importerCompany",
+  "agent",
+  "proformaInvoice",
+  "finalInvoice",
+  "invoiceValue",
+  "blNumber",
+  "blDate",
+  "origin",
+  "cooNumber",
+  "cooDate",
+  "commodity",
+  "hsCode",
+  "port",
+  "bank",
+  "transactionType",
+  "importPermit",
+  "notes",
+  "serviceFeeRate",
+  "serviceFeeAmount",
+  "financeNotes"
+]);
+const requestSectionContainerIds = {
+  basic: "basicRequestFieldsGrid",
+  finance: "financeRequestFieldsGrid",
+  custom: "dynamicRequestFields"
+};
 const fieldSectionFallbackMap = {
   sellerCompany: "basic",
   importerCompany: "basic",
@@ -1942,6 +1984,7 @@ function renderReferenceLists() {
   renderReferenceCollectionByType("documentTypes");
   renderReferenceCollectionByType("inputFields");
   renderDocumentsDatabaseTable();
+  renderRequestsDatabaseTable();
 }
 
 function renderReferenceCollectionByType(type) {
@@ -1949,25 +1992,25 @@ function renderReferenceCollectionByType(type) {
     renderReferenceCollection("companiesList", "companies", state.companies, (item) => `<strong>${item.name}</strong><small>${item.country || "-"}</small>`);
     return;
   }
-  if (type === "customTables") {
-    renderReferenceCollection("customTablesList", "customTables", state.customTables, (item) => `<strong><button class="inline-link" type="button" data-open-custom-table="${item.id}">${item.name}</button></strong><small>${item.key} • ${(item.columns || []).join(", ") || "بدون أعمدة"} • ${(item.rows || []).length} سجل • ${item.active ? "مفعّل" : "متوقف"}</small>`);
-    return;
-  }
+    if (type === "customTables") {
+      renderReferenceCollection("customTablesList", "customTables", state.customTables, (item) => `<strong><button class="inline-link" type="button" data-open-custom-table="${item.id}">${item.name}</button></strong><small>ترتيب ${item.sortOrder || 0} • ${item.key} • ${(item.columns || []).join(", ") || "بدون أعمدة"} • ${(item.rows || []).length} سجل • ${item.active ? "مفعّل" : "متوقف"}</small>`);
+      return;
+    }
   if (type === "roles") {
     renderReferenceCollection("rolesList", "roles", state.roles, (item) =>
       `<strong>${item.label || item.name}</strong><small>${item.name} • ${(item.allowedStages || []).join(", ") || "كل المراحل"} • ${item.description || "-"}</small>`);
     return;
   }
-  if (type === "documentCategories") {
-    renderReferenceCollection("documentCategoriesList", "documentCategories", state.documentCategories, (item) =>
-      `<strong>${item.label || item.key}</strong><small>${item.key} • ${item.description || "-"}</small>`);
-    return;
-  }
-  if (type === "documentNameSources") {
-    renderReferenceCollection("documentNameSourcesList", "documentNameSources", state.documentNameSources, (item) =>
-      `<strong>${item.label || item.key}</strong><small>${item.bindKey || "بدون ربط"} • ${item.description || "-"}</small>`);
-    return;
-  }
+    if (type === "documentCategories") {
+      renderReferenceCollection("documentCategoriesList", "documentCategories", state.documentCategories, (item) =>
+        `<strong>${item.label || item.key}</strong><small>ترتيب ${item.sortOrder || 0} • ${item.key} • ${item.description || "-"}</small>`);
+      return;
+    }
+    if (type === "documentNameSources") {
+      renderReferenceCollection("documentNameSourcesList", "documentNameSources", state.documentNameSources, (item) =>
+        `<strong>${item.label || item.key}</strong><small>ترتيب ${item.sortOrder || 0} • ${item.bindKey || "بدون ربط"} • ${item.description || "-"}</small>`);
+      return;
+    }
   if (type === "agents") {
     renderReferenceCollection("agentsList", "agents", state.agents, (item) => `<strong>${item.name}</strong><small>مستحقات ${formatCurrency(item.outstandingAmount || 0)} • خدمات ${formatCurrency(item.serviceFeeBalance || 0)}</small>`);
     return;
@@ -1992,18 +2035,18 @@ function renderReferenceCollectionByType(type) {
     renderReferenceCollection("usersDatabaseList", "users", state.users, (item) => `<strong>${item.name}</strong><small>${item.role} • ${item.stage}</small>`);
     return;
   }
-  if (type === "stages") {
-    renderReferenceCollection("stagesDatabaseList", "stages", state.stages, (item) => `<strong>${item.label}</strong><small>${item.name} • ترتيب ${item.order} • ${item.active ? "نشطة" : "معطلة"}</small>`);
-    return;
+    if (type === "stages") {
+      renderReferenceCollection("stagesDatabaseList", "stages", state.stages, (item) => `<strong>${item.label}</strong><small>${item.name} • ترتيب ${item.order} • ${item.active ? "نشطة" : "معطلة"}</small>`);
+      return;
+    }
+    if (type === "documentTypes") {
+      renderReferenceCollection("documentTypesList", "documentTypes", state.documentTypes, (item) => `<strong>${item.label}</strong><small>ترتيب ${item.sortOrder || 0} • ${item.key} • ${getDocumentCategoryLabel(item.category)} • ${(getDocumentNameSourceMeta(item.nameSource)?.label || fallbackDocumentNameSourceLabels[item.nameSource] || item.nameSource)} • ${item.active ? "مفعّل" : "متوقف"}</small>`);
+      return;
+    }
+    if (type === "inputFields") {
+      renderReferenceCollection("inputFieldsList", "inputFields", state.inputFields, (item) => `<strong>${item.label}</strong><small>ترتيب ${item.sortOrder || 0} • ${item.mode === "custom" ? "إضافي" : "موجود"} • ${item.section} • ${item.active ? "مفعّل" : "متوقف"}</small>`);
+    }
   }
-  if (type === "documentTypes") {
-    renderReferenceCollection("documentTypesList", "documentTypes", state.documentTypes, (item) => `<strong>${item.label}</strong><small>${item.key} • ${getDocumentCategoryLabel(item.category)} • ${(getDocumentNameSourceMeta(item.nameSource)?.label || fallbackDocumentNameSourceLabels[item.nameSource] || item.nameSource)} • ${item.active ? "مفعّل" : "متوقف"}</small>`);
-    return;
-  }
-  if (type === "inputFields") {
-    renderReferenceCollection("inputFieldsList", "inputFields", state.inputFields, (item) => `<strong>${item.label}</strong><small>${item.mode === "custom" ? "إضافي" : "موجود"} • ${item.section} • ${item.active ? "مفعّل" : "متوقف"}</small>`);
-  }
-}
 
 function renderDocumentsDatabaseTable() {
   const tableBody = document.getElementById("documentsDatabaseTableBody");
@@ -2052,11 +2095,106 @@ function renderDocumentsDatabaseTable() {
   });
 }
 
+function renderRequestsDatabaseTable() {
+  const tableBody = document.getElementById("requestsDatabaseTableBody");
+  if (!tableBody) return;
+
+  const rows = [...(state.requests || [])]
+    .filter((request) => !request.archived)
+    .sort((a, b) => String(b.requestNo || "").localeCompare(String(a.requestNo || ""), "en"));
+
+  tableBody.innerHTML = "";
+
+  if (!rows.length) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="10" class="empty-state">لا توجد طلبات محفوظة بعد</td>
+      </tr>
+    `;
+    return;
+  }
+
+  rows.forEach((request) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td><button class="inline-link" type="button" data-open-request="${request.id}">${escapeHtml(request.requestNo || "-")}</button></td>
+      <td>${escapeHtml(request.importerCompanyName || "-")}</td>
+      <td>${escapeHtml(request.sellerCompanyName || "-")}</td>
+      <td>${escapeHtml(request.agent || "-")}</td>
+      <td>${escapeHtml(request.finalInvoice || request.proformaInvoice || "-")}</td>
+      <td>${escapeHtml(formatUsd(request.invoiceValue || 0))}</td>
+      <td>${escapeHtml(formatStageLabel(request.stage || "-"))} • ${escapeHtml(request.status || "-")}</td>
+      <td>${escapeHtml(String((request.documents || []).length))}</td>
+      <td>${escapeHtml(formatPreviewDate(request.createdAt))}<br><small>${escapeHtml(formatPreviewDate(request.updatedAt))}</small></td>
+      <td>
+        <div class="row-actions">
+          <button class="link-button" type="button" data-open-request="${request.id}">عرض</button>
+          ${state.currentUser.permissions?.archiveRequests ? `<button class="link-button" type="button" data-archive-request="${request.id}">أرشفة</button>` : ""}
+          ${state.currentUser.permissions?.deleteRequests ? `<button class="link-button danger-link" type="button" data-delete-request="${request.id}">حذف</button>` : ""}
+        </div>
+      </td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
+
+function referenceTypeSupportsOrdering(type) {
+  return ["customTables", "documentCategories", "documentNameSources", "documentTypes", "inputFields", "stages"].includes(type);
+}
+
+function getReferenceSortValue(type, item) {
+  if (type === "stages") return Number(item.order || 0);
+  if (referenceTypeSupportsOrdering(type)) return Number(item.sortOrder || 0);
+  return Number(item.sortOrder || item.order || 0);
+}
+
+function getSortedReferenceItems(type, items) {
+  return [...items].sort((a, b) => {
+    const sortCompare = getReferenceSortValue(type, a) - getReferenceSortValue(type, b);
+    if (sortCompare !== 0) return sortCompare;
+    return String(a.label || a.name || a.key || a.email || a.id).localeCompare(
+      String(b.label || b.name || b.key || b.email || b.id),
+      "ar"
+    );
+  });
+}
+
+async function moveReferenceRecord(type, id, direction) {
+  const collection = Array.isArray(state[type]) ? [...state[type]] : [];
+  const activeItems = getSortedReferenceItems(type, collection.filter((item) => !item.archived));
+  const currentIndex = activeItems.findIndex((item) => Number(item.id) === Number(id));
+  if (currentIndex < 0) return;
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= activeItems.length) return;
+
+  const currentItem = activeItems[currentIndex];
+  const targetItem = activeItems[targetIndex];
+  const sortKey = type === "stages" ? "order" : "sortOrder";
+  const currentSort = Number(currentItem[sortKey] || currentIndex + 1);
+  const targetSort = Number(targetItem[sortKey] || targetIndex + 1);
+
+  state[type] = collection.map((item) => {
+    if (Number(item.id) === Number(currentItem.id)) {
+      return { ...item, [sortKey]: targetSort, updatedAt: new Date().toISOString() };
+    }
+    if (Number(item.id) === Number(targetItem.id)) {
+      return { ...item, [sortKey]: currentSort, updatedAt: new Date().toISOString() };
+    }
+    return item;
+  });
+
+  await dataService.saveState(state);
+  renderApp();
+}
+
 function renderReferenceCollection(containerId, type, items, labelFn) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const filters = getReferenceFilterState(type);
-  const filteredItems = items.filter((item) => !item.archived).filter((item) => matchesReferenceFilters(type, item));
+  const filteredItems = getSortedReferenceItems(
+    type,
+    items.filter((item) => !item.archived).filter((item) => matchesReferenceFilters(type, item))
+  );
   container.innerHTML = `
     <div class="reference-toolbar">
       <input type="search" data-reference-filter="${type}" data-filter-kind="search" placeholder="بحث سريع" value="${escapeHtml(filters.search)}">
@@ -2073,12 +2211,15 @@ function renderReferenceCollection(containerId, type, items, labelFn) {
   filteredItems.forEach((item) => {
     const card = document.createElement("article");
     card.className = "reference-record";
+    const canReorder = referenceTypeSupportsOrdering(type);
     card.innerHTML = `
       <div>
         ${labelFn(item)}
         <small class="reference-audit">أضيف ${escapeHtml(formatPreviewDate(item.createdAt))} • عُدل ${escapeHtml(formatPreviewDate(item.updatedAt))}</small>
       </div>
       <div class="document-actions">
+        ${canReorder ? `<button class="link-button" type="button" data-move-reference="${type}:${item.id}:up">رفع</button>
+        <button class="link-button" type="button" data-move-reference="${type}:${item.id}:down">خفض</button>` : ""}
         <button class="link-button" type="button" data-edit-reference="${type}:${item.id}">تعديل</button>
         <button class="link-button danger-link" type="button" data-delete-reference="${type}:${item.id}">حذف</button>
       </div>
@@ -2261,12 +2402,18 @@ function attachDynamicEvents() {
       openReferenceDialog(type, Number(id));
     };
   });
-  document.querySelectorAll("[data-delete-reference]").forEach((button) => {
-    button.onclick = () => {
-      const [type, id] = button.dataset.deleteReference.split(":");
-      deleteReferenceRecord(type, Number(id));
-    };
-  });
+    document.querySelectorAll("[data-delete-reference]").forEach((button) => {
+      button.onclick = () => {
+        const [type, id] = button.dataset.deleteReference.split(":");
+        deleteReferenceRecord(type, Number(id));
+      };
+    });
+    document.querySelectorAll("[data-move-reference]").forEach((button) => {
+      button.onclick = () => {
+        const [type, id, direction] = String(button.dataset.moveReference || "").split(":");
+        moveReferenceRecord(type, Number(id), direction);
+      };
+    });
   document.querySelectorAll("[data-restore-request]").forEach((button) => {
     button.onclick = () => restoreRequest(Number(button.dataset.restoreRequest));
   });
@@ -3267,8 +3414,8 @@ function gatherRequestFormData() {
   const invoiceValue = Number(document.getElementById("invoiceValueInput").value || 0);
   const serviceFeeRate = Number(document.getElementById("serviceFeeRateInput").value || 0);
   const customFields = Object.fromEntries(
-    getCustomInputFieldDefinitions().map((field) => {
-      const element = document.querySelector(`[data-custom-input-key="${field.key}"]`);
+    getGeneratedInputFieldDefinitions().map((field) => {
+      const element = document.querySelector(`[data-generated-input-key="${field.key}"]`);
       return [field.key, field.inputType === "number" ? Number(element?.value || 0) : (element?.value || "")];
     })
   );
@@ -3484,6 +3631,17 @@ function enforceStageEditableFields(existing, formData, stageName = existing?.st
   restoreIfLocked("financeNotes", () => {
     result.financeNotes = existing.financeNotes;
   });
+
+  const nextCustomFields = {
+    ...(existing.customFields || {}),
+    ...(result.customFields || {})
+  };
+  getGeneratedInputFieldDefinitions().forEach((field) => {
+    if (!stageAllowsEditField(field.key, stageName, existing)) {
+      nextCustomFields[field.key] = existing.customFields?.[field.key] ?? "";
+    }
+  });
+  result.customFields = nextCustomFields;
 
   return result;
 }
@@ -3865,12 +4023,14 @@ function normalizeReferencePayload(type, payload) {
   if (type === "documentCategories") return {
     key: payload.key.trim(),
     label: payload.label.trim(),
+    sortOrder: Number(payload.sortOrder || 0),
     description: payload.description?.trim() || "",
     active: payload.active === "true"
   };
   if (type === "documentNameSources") return {
     key: payload.key.trim(),
     label: payload.label.trim(),
+    sortOrder: Number(payload.sortOrder || 0),
     bindKey: payload.bindKey?.trim() || "",
     description: payload.description?.trim() || "",
     active: payload.active === "true"
@@ -3889,10 +4049,11 @@ function normalizeReferencePayload(type, payload) {
   if (type === "documentTypes") return {
     key: payload.key.trim(),
     label: payload.label.trim(),
+    sortOrder: Number(payload.sortOrder || 0),
     category: payload.category,
     nameSource: payload.nameSource,
-    requiredStages: splitCommaValues(payload.requiredStages),
-    optionalStages: splitCommaValues(payload.optionalStages),
+    requiredStages: normalizeStageNameList(payload.requiredStages),
+    optionalStages: normalizeStageNameList(payload.optionalStages),
     allowCustomTitle: payload.allowCustomTitle === "true",
     active: payload.active === "true"
   };
@@ -3912,6 +4073,7 @@ function normalizeReferencePayload(type, payload) {
     key: payload.key.trim(),
     name: payload.name.trim(),
     description: payload.description?.trim() || "",
+    sortOrder: Number(payload.sortOrder || 0),
     columns: splitCommaValues(payload.columns),
     active: payload.active === "true"
   };
@@ -3941,6 +4103,24 @@ function splitCommaValues(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeStageNameToken(value) {
+  const token = String(value || "").trim();
+  if (!token) return "";
+  const matchedStage = (state.stages || []).find((stage) =>
+    String(stage.name || "").trim().toLowerCase() === token.toLowerCase()
+    || String(stage.label || "").trim().toLowerCase() === token.toLowerCase()
+  );
+  return matchedStage?.name || token;
+}
+
+function normalizeStageNameList(value) {
+  const rawItems = Array.isArray(value) ? value : splitCommaValues(value);
+  return rawItems
+    .map((item) => normalizeStageNameToken(item))
+    .filter(Boolean)
+    .filter((item, index, array) => array.indexOf(item) === index);
 }
 
 async function deleteReferenceRecord(type, id) {
@@ -4551,7 +4731,25 @@ function buildSearchableText(item) {
 
 function getInputFieldDefinitions() {
   return (state.inputFields || [])
+    .slice()
     .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
+function getRequestSectionContainer(sectionKey) {
+  const targetId = requestSectionContainerIds[sectionKey] || requestSectionContainerIds.basic;
+  return document.getElementById(targetId);
+}
+
+function isManagedInputFieldDefinition(field) {
+  return managedRequestFieldKeys.has(field.bindKey || field.key);
+}
+
+function getGeneratedInputFieldDefinitions(sectionKey = null) {
+  return getInputFieldDefinitions().filter((field) => {
+    if (!field.active) return false;
+    if (sectionKey && field.section !== sectionKey) return false;
+    return !isManagedInputFieldDefinition(field);
+  });
 }
 
 function roleAllowsSection(sectionKey) {
@@ -4583,22 +4781,31 @@ function roleAllowsEditField(fieldKey) {
 }
 
 function getCustomInputFieldDefinitions() {
-  return getInputFieldDefinitions().filter((item) => item.active && (item.mode === "custom" || item.section === "custom"));
+  return getGeneratedInputFieldDefinitions("custom");
 }
 
 function getStaticInputFieldDefinitions() {
-  return getInputFieldDefinitions().filter((item) => item.mode !== "custom");
+  return getInputFieldDefinitions().filter((item) => item.active && isManagedInputFieldDefinition(item));
 }
 
 function applyInputFieldDefinitions() {
-  getStaticInputFieldDefinitions().forEach((field) => {
-    const wrapper = document.querySelector(`[data-field-key="${field.bindKey}"]`);
+  const request = state.requests.find((item) => item.id === currentEditRequestId) || null;
+  const stageName = getCurrentEditingStage();
+  const fieldDefinitions = getInputFieldDefinitions();
+  const managedDefinitions = fieldDefinitions.filter((field) => isManagedInputFieldDefinition(field));
+
+  managedDefinitions.forEach((field) => {
+    const wrapper = document.querySelector(`[data-field-key="${field.bindKey || field.key}"]`);
     if (!wrapper) return;
+    const targetContainer = getRequestSectionContainer(field.section);
+    if (targetContainer && wrapper.parentElement !== targetContainer) {
+      targetContainer.appendChild(wrapper);
+    }
+    wrapper.style.order = String(Number(field.sortOrder || 0));
     const label = wrapper.querySelector("span");
-    const input = getManagedFieldElement(field.bindKey);
-    const stageName = getCurrentEditingStage();
-    const canSee = field.active && roleAllowsSection(field.section) && roleAllowsField(field.bindKey);
-    const canEdit = stageAllowsEditField(field.bindKey, stageName);
+    const input = getManagedFieldElement(field.bindKey || field.key);
+    const canSee = field.active && roleAllowsSection(field.section) && roleAllowsField(field.bindKey || field.key);
+    const canEdit = stageAllowsEditField(field.bindKey || field.key, stageName, request);
     wrapper.hidden = !canSee;
     if (label) label.textContent = field.label;
     if (input) {
@@ -4607,7 +4814,7 @@ function applyInputFieldDefinitions() {
       else input.removeAttribute("required");
       input.disabled = !canEdit;
       if ("readOnly" in input && input.tagName !== "SELECT") {
-        input.readOnly = !canEdit || alwaysReadonlyFieldKeys.has(field.bindKey);
+        input.readOnly = !canEdit || alwaysReadonlyFieldKeys.has(field.bindKey || field.key);
       }
       if (input.tagName === "SELECT" && !canEdit) {
         input.setAttribute("disabled", "disabled");
@@ -4617,7 +4824,16 @@ function applyInputFieldDefinitions() {
       button.disabled = !canEdit;
     });
   });
-  renderCustomRequestFields(state.requests.find((item) => item.id === currentEditRequestId) || null);
+
+  managedRequestFieldKeys.forEach((fieldKey) => {
+    if (managedDefinitions.some((field) => (field.bindKey || field.key) === fieldKey)) return;
+    const wrapper = document.querySelector(`[data-field-key="${fieldKey}"]`);
+    if (wrapper) wrapper.hidden = true;
+  });
+
+  renderGeneratedRequestFields("basic", request);
+  renderGeneratedRequestFields("finance", request);
+  renderGeneratedRequestFields("custom", request);
 }
 
 function getManagedFieldElement(bindKey) {
@@ -4626,34 +4842,51 @@ function getManagedFieldElement(bindKey) {
   return wrapper.querySelector("input, select, textarea");
 }
 
-function renderCustomRequestFields(request = null) {
-  const panel = document.getElementById("customFieldsPanel");
-  const container = document.getElementById("dynamicRequestFields");
-  if (!panel || !container) return;
-  const fields = getCustomInputFieldDefinitions();
-  if (!fields.length) {
-    panel.hidden = true;
-    container.innerHTML = "";
-    return;
+function renderGeneratedRequestFields(sectionKey, request = null) {
+  const panel = sectionKey === "custom" ? document.getElementById("customFieldsPanel") : null;
+  const container = getRequestSectionContainer(sectionKey);
+  if (!container) return;
+  const fields = getGeneratedInputFieldDefinitions(sectionKey);
+  container.querySelectorAll(".generated-request-field").forEach((field) => field.remove());
+
+  const visibleFields = fields.filter((field) => roleAllowsSection(sectionKey) && roleAllowsField(field.key));
+  if (panel) {
+    const visibleCustomSectionFields = getInputFieldDefinitions().filter((field) =>
+      field.active
+      && field.section === "custom"
+      && roleAllowsSection("custom")
+      && roleAllowsField(field.bindKey || field.key)
+    );
+    panel.hidden = visibleCustomSectionFields.length === 0;
   }
-  panel.hidden = !roleAllowsSection("custom");
-  if (panel.hidden) return;
-  container.innerHTML = "";
-  fields.forEach((field) => {
+  if (!visibleFields.length) return;
+
+  visibleFields.forEach((field) => {
     const value = request?.customFields?.[field.key] ?? "";
-    const canSee = roleAllowsField(field.key);
-    if (!canSee) return;
-    const canEdit = roleAllowsEditSection("custom") && roleAllowsEditField(field.key) && stageAllowsEditField(field.key, getCurrentEditingStage(), request);
+    const canEdit = roleAllowsEditSection(sectionKey) && roleAllowsEditField(field.key) && stageAllowsEditField(field.key, getCurrentEditingStage(), request);
     const label = document.createElement("label");
-    label.className = field.inputType === "textarea" ? "full-span" : "";
+    label.className = `generated-request-field ${field.inputType === "textarea" ? "full-span" : ""}`.trim();
+    label.dataset.fieldKey = field.key;
+    label.style.order = String(Number(field.sortOrder || 0));
+
+    let controlMarkup = "";
+    if (field.inputType === "textarea") {
+      controlMarkup = `<textarea data-generated-input-key="${field.key}" rows="3" placeholder="${escapeHtml(field.placeholder || "")}" ${field.required ? "required" : ""} ${canEdit ? "" : "readonly disabled"}>${escapeHtml(value)}</textarea>`;
+    } else {
+      const htmlInputType = ["number", "date"].includes(field.inputType) ? field.inputType : "text";
+      controlMarkup = `<input data-generated-input-key="${field.key}" type="${htmlInputType}" value="${escapeHtml(value)}" placeholder="${escapeHtml(field.placeholder || "")}" ${field.required ? "required" : ""} ${canEdit ? "" : "readonly disabled"}>`;
+    }
+
     label.innerHTML = `
       <span>${escapeHtml(field.label)}</span>
-      ${field.inputType === "textarea"
-        ? `<textarea data-custom-input-key="${field.key}" rows="3" placeholder="${escapeHtml(field.placeholder || "")}" ${field.required ? "required" : ""} ${canEdit ? "" : "readonly disabled"}>${escapeHtml(value)}</textarea>`
-        : `<input data-custom-input-key="${field.key}" type="${field.inputType}" value="${escapeHtml(value)}" placeholder="${escapeHtml(field.placeholder || "")}" ${field.required ? "required" : ""} ${canEdit ? "" : "readonly disabled"}>`}
+      ${controlMarkup}
     `;
     container.appendChild(label);
   });
+}
+
+function renderCustomRequestFields(request = null) {
+  renderGeneratedRequestFields("custom", request);
 }
 
 function flattenSearchValue(value) {
@@ -4808,11 +5041,15 @@ function getStageDocumentDefinitions(stageName) {
   const optional = activeDocumentTypes
     .filter((item) => !(item.requiredStages || []).includes(stageName) && (item.optionalStages || []).includes(stageName))
     .map((item) => ({ ...item, requirement: "optional" }));
-  return [...required, ...optional];
+  return [...required, ...optional]
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
 }
 
 function getAllActiveDocumentDefinitions() {
-  return (state.documentTypes || []).filter((item) => item.active);
+  return (state.documentTypes || [])
+    .filter((item) => item.active)
+    .slice()
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
 }
 
 function renderDynamicDocumentUploads(stageName, request = null) {
