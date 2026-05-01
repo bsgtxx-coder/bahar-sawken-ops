@@ -2165,6 +2165,99 @@ textarea:focus {
   }
 }
 
+/* Sidebar and topbar account placement refinement */
+.sidebar {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.profile-meta-compact {
+  margin-top: 0.95rem;
+}
+
+.brand-card-identity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+
+.brand-card-role,
+.brand-card-stage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.85rem;
+}
+
+.topbar-mini-action {
+  min-height: 46px;
+  padding-inline: 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.68);
+}
+
+.nav-link {
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.nav-link > span:last-child {
+  flex: 1 1 auto;
+  text-align: right;
+}
+
+.nav-link-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.nav-link.active .nav-link-icon {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.08));
+  box-shadow: 0 10px 22px rgba(255, 92, 128, 0.22);
+}
+
+.sidebar-footer-glow {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(88, 8, 21, 0), rgba(88, 8, 21, 0.65) 36%, rgba(88, 8, 21, 0.92));
+  padding-top: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 1180px) {
+  .sidebar {
+    position: relative;
+    top: 0;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 780px) {
+  .topbar-mini-action {
+    flex: 1 1 calc(50% - 0.5rem);
+  }
+}
+
 /* Refined application composition */
 .app-shell {
   grid-template-columns: 290px minmax(0, 1fr);
